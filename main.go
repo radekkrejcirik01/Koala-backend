@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	fiberadapter "github.com/awslabs/aws-lambda-go-api-proxy/fiber"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/rest"
 )
 
@@ -15,7 +16,7 @@ var fiberLambda *fiberadapter.FiberLambda
 
 func init() {
 	database.Connect()
-	if err := database.DB.AutoMigrate(); err != nil {
+	if err := database.DB.AutoMigrate(&users.User{}); err != nil {
 		log.Fatal(err)
 	}
 
