@@ -9,11 +9,20 @@ import (
 func Create() *fiber.App {
 	app := fiber.New()
 
-	app.Get("/", controller.GetIndex)
 	app.Get("/user", controller.GetUser)
+	app.Get("/friends", controller.GetFriends)
+	app.Get("/friend-requests", controller.GetFriendRequests)
+	app.Get("/notifications/:lastId?", controller.GetNotifications)
+	app.Get("/history/:lastId?", controller.GetHistory)
 
 	app.Post("/user", controller.CreateUser)
 	app.Post("/login", controller.LoginUser)
+	app.Post("/invite", controller.SendInvite)
+	app.Post("/device", controller.SaveDevice)
+	app.Post("/emotion-notification", controller.SendEmotionNotification)
+	app.Post("/support-notification", controller.SendSupportNotification)
+
+	app.Put("/invite", controller.AcceptInvite)
 
 	return app
 }

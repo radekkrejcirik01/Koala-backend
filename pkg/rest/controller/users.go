@@ -7,14 +7,6 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 )
 
-// GetUser GET /user
-func GetIndex(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusOK).JSON(Response{
-		Status:  "success",
-		Message: "Index successfully got",
-	})
-}
-
 // CreateUser POST /user
 func CreateUser(c *fiber.Ctx) error {
 	t := &users.User{}
@@ -54,23 +46,30 @@ func LoginUser(c *fiber.Ctx) error {
 	t := &users.Login{}
 
 	if err := c.BodyParser(t); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(Response{
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
 			Message: err.Error(),
 		})
 	}
 
 	if err := users.LoginUser(database.DB, t); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(Response{
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
 			Message: err.Error(),
+		})
+	}
+
+	token, err := middleware.CreateJWT(t.Username)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(AuthResponse{
 		Status:  "success",
 		Message: "User successfully authenticated",
-		Token:   "",
+		Token:   token,
 	})
 }
 

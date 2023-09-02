@@ -3,23 +3,33 @@ module github.com/radekkrejcirik01/Koala-backend
 go 1.20
 
 require (
-	github.com/aws/aws-lambda-go v1.41.0
-	github.com/awslabs/aws-lambda-go-api-proxy v0.14.0
-	github.com/gofiber/fiber/v2 v2.1.0
+	github.com/appleboy/go-fcm v0.1.5
+	github.com/aws/aws-lambda-go v1.36.1
+	github.com/awslabs/aws-lambda-go-api-proxy v0.13.3
+	github.com/gofiber/fiber/v2 v2.45.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.0
-	gorm.io/driver/mysql v1.5.1
-	gorm.io/gorm v1.25.4
+	gorm.io/driver/mysql v1.4.5
+	gorm.io/gorm v1.24.3
 )
 
 require (
-	github.com/andybalholm/brotli v1.0.4 // indirect
+	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/klauspost/compress v1.15.6 // indirect
+	github.com/klauspost/compress v1.16.3 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.18 // indirect
+	github.com/mattn/go-runewidth v0.0.14 // indirect
+	github.com/philhofer/fwd v1.1.2 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/savsgio/dictpool v0.0.0-20221023140959-7bf2e61cea94 // indirect
+	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
+	github.com/tinylib/msgp v1.1.8 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.34.0 // indirect
+	github.com/valyala/fasthttp v1.47.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
-	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c // indirect
+	golang.org/x/sys v0.8.0 // indirect
 )

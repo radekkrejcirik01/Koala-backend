@@ -8,7 +8,7 @@ import (
 type User struct {
 	Id           uint   `gorm:"primary_key;auto_increment;not_null" json:"id"`
 	Username     string `json:"username"`
-	Firstname    string `json:"firstname"`
+	Name         string `json:"name"`
 	ProfilePhoto string `json:"profilePhoto"`
 	Password     string
 }
@@ -23,9 +23,8 @@ type Login struct {
 }
 
 type UserData struct {
-	Username     string `json:"username"`
-	Firstname    string `json:"firstname"`
-	ProfilePhoto string `json:"profilePhoto"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
 }
 
 // CreateUser in users table
@@ -65,7 +64,7 @@ func GetUser(db *gorm.DB, username string) (UserData, error) {
 
 	err := db.
 		Table("users").
-		Select("username, firstname, profile_photo").
+		Select("username, name").
 		Where("username = ?", username).
 		Find(&user).
 		Error
