@@ -18,6 +18,7 @@ type Notification struct {
 	Type     string
 	Message  string
 	Time     int64 `gorm:"autoCreateTime"`
+	Seen     int   `gorm:"default:0"`
 }
 
 func (Notification) TableName() string {
@@ -132,6 +133,15 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		return nil, err
 	}
 
+	// Update seen notifications
+	if err := db.
+		Table("notifications").
+		Where("receiver = ? AND seen = 0", username).
+		Update("seen", 1).
+		Error; err != nil {
+		return nil, err
+	}
+
 	usernames := getSendersFromNotifications(notifications)
 
 	if err := db.
@@ -155,6 +165,22 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 	}
 
 	return notificationsData, nil
+}
+
+// GetUnseenNotifications get unseen notifications from notifications table
+func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
+	var unseenNotifications int64
+
+	if err := db.
+		Table("notifications").
+		Where("receiver = ? AND seen = 0", username).
+		Count(&unseenNotifications).
+		Count(&unseenNotifications).
+		Error; err != nil {
+		return nil, err
+	}
+
+	return &unseenNotifications, nil
 }
 
 // GetHistory gets notifications history from notifications table
@@ -235,7 +261,7 @@ func groupNotifications(notifications []Notification) []Notification {
 	return n
 }
 
-// Helper function to check check if notifications array contains notification
+// Helper function to check if notifications array contains notification
 func containsNotification(notifications []Notification, notification Notification) bool {
 	for _, n := range notifications {
 		if n.Message == notification.Message && n.Time == notification.Time {
