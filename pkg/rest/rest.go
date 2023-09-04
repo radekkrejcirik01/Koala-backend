@@ -25,5 +25,7 @@ func Create() *fiber.App {
 
 	app.Put("/invite", controller.AcceptInvite)
 
+	app.Delete("/account", controller.DeleteAccount)
+
 	return app
 }
