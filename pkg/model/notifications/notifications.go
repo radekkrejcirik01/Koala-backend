@@ -46,12 +46,10 @@ type NotificationData struct {
 }
 
 type HistoryData struct {
-	Id           int    `json:"id"`
-	Sender       string `json:"sender"`
-	ReceiverName string `json:"receiverName"`
-	Type         string `json:"type"`
-	Message      string `json:"message"`
-	Time         int64  `json:"time"`
+	Id             int      `json:"id"`
+	ReceiversNames []string `json:"receiversNames"`
+	Message        string   `json:"message"`
+	Time           int64    `json:"time"`
 }
 
 // SendEmotionNotification sends emotion notification
@@ -168,6 +166,7 @@ func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, err
 	if lastId != "" {
 		idCondition = fmt.Sprintf("id < %s AND ", lastId)
 	}
+
 	if err := db.
 		Table("notifications").
 		Where(idCondition+"sender = ? AND type = 'emotion'", username).
@@ -177,6 +176,8 @@ func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, err
 		Error; err != nil {
 		return nil, err
 	}
+
+	n := groupNotifications(notifications)
 
 	usernames := getReceiversFromNotifications(notifications)
 
@@ -189,18 +190,59 @@ func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, err
 	}
 
 	var history []HistoryData
-	for _, notification := range notifications {
+	for _, notification := range n {
 		history = append(history, HistoryData{
-			Id:           int(notification.Id),
-			Sender:       notification.Sender,
-			ReceiverName: getName(usersData, notification.Receiver),
-			Type:         notification.Type,
-			Message:      notification.Message,
-			Time:         notification.Time,
+			Id:             int(notification.Id),
+			ReceiversNames: getNamesFromNotifications(notifications, usersData, notification),
+			Message:        notification.Message,
+			Time:           notification.Time,
 		})
 	}
 
 	return history, nil
+}
+
+// Helper function to get names from notifications
+func getNamesFromNotifications(notifications []Notification, users []users.UserData, notification Notification) []string {
+	var receivers []string
+	var names []string
+
+	for _, n := range notifications {
+		if n.Message == notification.Message && n.Time == notification.Time {
+			receivers = append(receivers, n.Receiver)
+		}
+	}
+
+	for _, user := range users {
+		if contains(receivers, user.Username) {
+			names = append(names, user.Name)
+		}
+	}
+
+	return names
+}
+
+// Helper function to group same notifications with different receivers
+func groupNotifications(notifications []Notification) []Notification {
+	var n []Notification
+
+	for _, notification := range notifications {
+		if !containsNotification(n, notification) {
+			n = append(n, notification)
+		}
+	}
+
+	return n
+}
+
+// Helper function to check check if notifications array contains notification
+func containsNotification(notifications []Notification, notification Notification) bool {
+	for _, n := range notifications {
+		if n.Message == notification.Message && n.Time == notification.Time {
+			return true
+		}
+	}
+	return false
 }
 
 // Helper function to get name from users data
