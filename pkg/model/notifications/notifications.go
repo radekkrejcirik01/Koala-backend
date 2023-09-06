@@ -32,6 +32,7 @@ type EmotionNotification struct {
 }
 
 type SupportNotification struct {
+	Id       int
 	Receiver string
 	Name     string
 	Message  string
@@ -43,6 +44,7 @@ type NotificationData struct {
 	Name    string `json:"name"`
 	Type    string `json:"type"`
 	Message string `json:"message"`
+	Liked   *int   `json:"liked"`
 	Time    int64  `json:"time"`
 }
 
@@ -98,6 +100,15 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 		return err
 	}
 
+	notificationLike := NotificationLike{
+		Sender:         username,
+		NotificationId: t.Id,
+	}
+
+	if err := db.Table("notifications_likes").Create(&notificationLike).Error; err != nil {
+		return err
+	}
+
 	tokens, err := service.GetTokensByUsername(db, t.Receiver)
 	if err != nil {
 		return err
@@ -142,7 +153,19 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		return nil, err
 	}
 
+	notificationsIds := getNotificationsIds(notifications)
 	usernames := getSendersFromNotifications(notifications)
+
+	var likedNotificationsIds []int
+	if err := db.
+		Table("notifications_likes").
+		Select("notification_id").
+		Where("sender = ? AND notification_id IN ?",
+			username, notificationsIds).
+		Find(&likedNotificationsIds).
+		Error; err != nil {
+		return nil, err
+	}
 
 	if err := db.
 		Table("users").
@@ -160,6 +183,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 			Name:    getName(usersData, notification.Sender),
 			Type:    notification.Type,
 			Message: notification.Message,
+			Liked:   isNotificationLiked(int(notification.Id), likedNotificationsIds),
 			Time:    notification.Time,
 		})
 	}
@@ -282,6 +306,17 @@ func getName(usersData []users.UserData, username string) string {
 	return ""
 }
 
+// Helper function to get ids from notifications
+func getNotificationsIds(notifications []Notification) []int {
+	var ids []int
+
+	for _, notification := range notifications {
+		ids = append(ids, int(notification.Id))
+	}
+
+	return ids
+}
+
 // Helper function to get senders from notifications
 func getSendersFromNotifications(notifications []Notification) []string {
 	var senders []string
@@ -306,6 +341,19 @@ func getReceiversFromNotifications(notifications []Notification) []string {
 	}
 
 	return receivers
+}
+
+// Helper function to check if notification was liked
+func isNotificationLiked(notificationId int, likedNotificationsIds []int) *int {
+	var isLiked int
+
+	for _, liked := range likedNotificationsIds {
+		if liked == notificationId {
+			isLiked = 1
+			break
+		}
+	}
+	return &isLiked
 }
 
 // Helper function to check if string array contains value
