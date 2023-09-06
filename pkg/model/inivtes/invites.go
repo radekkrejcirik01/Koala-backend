@@ -22,6 +22,19 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "Why are you inviting yourself? 😀", nil
 	}
 
+	var friendsNumber int64
+	if err := db.
+		Table("invites").
+		Where("(sender = ? OR receiver = ?) AND accepted = 1", t.Receiver, t.Receiver).
+		Count(&friendsNumber).
+		Error; err != nil {
+		return "", err
+	}
+
+	if friendsNumber >= 3 {
+		return "This user has already added 3 people", nil
+	}
+
 	var user users.UserData
 	if err := db.
 		Table("users").
@@ -79,12 +92,27 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 }
 
 // AcceptInvite updates accepted column in invites table
-func AcceptInvite(db *gorm.DB, t *Invite) error {
-	return db.
+func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
+	var friendsNumber int64
+	if err := db.
+		Table("invites").
+		Where("(sender = ? OR receiver = ?) AND accepted = 1", t.Sender, t.Sender).
+		Count(&friendsNumber).
+		Error; err != nil {
+		return "", err
+	}
+
+	if friendsNumber >= 3 {
+		return "You have already added 3 people", nil
+	}
+
+	err := db.
 		Table("invites").
 		Where("receiver = ? AND sender = ?", t.Sender, t.Receiver).
 		Update("accepted", 1).
 		Error
+
+	return "", err
 }
 
 // GetFriends gets friend from invites

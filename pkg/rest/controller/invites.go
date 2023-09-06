@@ -57,7 +57,9 @@ func AcceptInvite(c *fiber.Ctx) error {
 
 	t.Sender = username
 
-	if err := inivtes.AcceptInvite(database.DB, t); err != nil {
+	message, err := inivtes.AcceptInvite(database.DB, t)
+
+	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
 			Message: err.Error(),
@@ -66,7 +68,7 @@ func AcceptInvite(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(Response{
 		Status:  "success",
-		Message: "Invite accepted",
+		Message: message,
 	})
 }
 
