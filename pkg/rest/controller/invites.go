@@ -4,7 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/middleware"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/model/inivtes"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 )
 
 // SendInvite POST /invite
@@ -14,7 +14,7 @@ func SendInvite(c *fiber.Ctx) error {
 		return err
 	}
 
-	t := &inivtes.Invite{}
+	t := &invites.Invite{}
 
 	if err := c.BodyParser(t); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
@@ -25,7 +25,7 @@ func SendInvite(c *fiber.Ctx) error {
 
 	t.Sender = username
 
-	message, err := inivtes.SendInvite(database.DB, t)
+	message, err := invites.SendInvite(database.DB, t)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
@@ -46,7 +46,7 @@ func AcceptInvite(c *fiber.Ctx) error {
 		return err
 	}
 
-	t := &inivtes.Invite{}
+	t := &invites.Invite{}
 
 	if err := c.BodyParser(t); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
@@ -57,7 +57,7 @@ func AcceptInvite(c *fiber.Ctx) error {
 
 	t.Sender = username
 
-	message, err := inivtes.AcceptInvite(database.DB, t)
+	message, err := invites.AcceptInvite(database.DB, t)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
@@ -79,7 +79,7 @@ func GetFriends(c *fiber.Ctx) error {
 		return err
 	}
 
-	friends, err := inivtes.GetFriends(database.DB, username)
+	friends, err := invites.GetFriends(database.DB, username)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
@@ -101,7 +101,7 @@ func GetFriendRequests(c *fiber.Ctx) error {
 		return err
 	}
 
-	friendRequests, err := inivtes.GetFriendRequests(database.DB, username)
+	friendRequests, err := invites.GetFriendRequests(database.DB, username)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",

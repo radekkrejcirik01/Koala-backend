@@ -9,7 +9,7 @@ import (
 	fiberadapter "github.com/awslabs/aws-lambda-go-api-proxy/fiber"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/devices"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/model/inivtes"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/rest"
@@ -21,7 +21,7 @@ func init() {
 	database.Connect()
 	if err := database.DB.AutoMigrate(
 		&users.User{},
-		&inivtes.Invite{},
+		&invites.Invite{},
 		&devices.Device{},
 		&notifications.Notification{},
 		&notifications.NotificationLike{},

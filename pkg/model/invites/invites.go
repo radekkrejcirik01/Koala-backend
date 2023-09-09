@@ -1,4 +1,4 @@
-package inivtes
+package invites
 
 import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
@@ -45,7 +45,7 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 	}
 
 	if len(user.Username) == 0 {
-		return "Username doesn't exist", nil
+		return "There is no user with this username", nil
 	}
 
 	var invite Invite
@@ -59,10 +59,10 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 	}
 
 	if invite.Sender == t.Sender {
-		return "Invite already sent", nil
+		return "This user was already invited", nil
 	}
 	if invite.Sender == t.Receiver {
-		return "User already invited you", nil
+		return "This user already invited you", nil
 	}
 
 	newInvite := Invite{
@@ -79,9 +79,6 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 	}
 
 	fcmNotification := service.FcmNotification{
-		Data: map[string]interface{}{
-			"type": "contacts",
-		},
 		Title:   t.Sender,
 		Body:    t.Sender + " sends a friend invite",
 		Sound:   "default",

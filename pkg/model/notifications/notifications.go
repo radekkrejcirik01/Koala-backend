@@ -95,7 +95,6 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 		Type:     SupportNotificationType,
 		Message:  t.Message,
 	}
-
 	if err := db.Table("notifications").Create(&notification).Error; err != nil {
 		return err
 	}
@@ -104,7 +103,6 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 		Sender:         username,
 		NotificationId: t.Id,
 	}
-
 	if err := db.Table("notifications_likes").Create(&notificationLike).Error; err != nil {
 		return err
 	}
@@ -115,8 +113,8 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   t.Name + " is sending support ❤️",
-		Body:    `"` + t.Message + `""`,
+		Title:   t.Name,
+		Body:    t.Name + " is sending support ❤️‍🩹",
 		Sound:   "default",
 		Devices: tokens,
 	}
