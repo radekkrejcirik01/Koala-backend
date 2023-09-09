@@ -109,7 +109,18 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 		Update("accepted", 1).
 		Error
 
-	return "", err
+	tokens, err := service.GetTokensByUsername(db, t.Receiver)
+	if err != nil {
+		return "", err
+	}
+
+	fcmNotification := service.FcmNotification{
+		Body:    t.Sender + " accepted your friend invite",
+		Sound:   "default",
+		Devices: tokens,
+	}
+
+	return "", service.SendNotification(&fcmNotification)
 }
 
 // GetFriends gets friend from invites
