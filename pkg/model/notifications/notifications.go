@@ -48,7 +48,7 @@ type NotificationData struct {
 	Time    int64  `json:"time"`
 }
 
-type HistoryData struct {
+type TrackData struct {
 	Id             int      `json:"id"`
 	ReceiversNames []string `json:"receiversNames"`
 	Message        string   `json:"message"`
@@ -114,7 +114,7 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 
 	fcmNotification := service.FcmNotification{
 		Title:   t.Name,
-		Body:    t.Name + " is sending support ❤️‍🩹",
+		Body:    t.Name + " is sending support! ❤️‍🩹",
 		Sound:   "default",
 		Devices: tokens,
 	}
@@ -205,8 +205,8 @@ func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
 	return &unseenNotifications, nil
 }
 
-// GetHistory gets notifications history from notifications table
-func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, error) {
+// GetTrack gets track of sent notifications from notifications table
+func GetTrack(db *gorm.DB, username string, lastId string) ([]TrackData, error) {
 	var notifications []Notification
 	var usersData []users.UserData
 
@@ -237,9 +237,9 @@ func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, err
 		return nil, err
 	}
 
-	var history []HistoryData
+	var track []TrackData
 	for _, notification := range n {
-		history = append(history, HistoryData{
+		track = append(track, TrackData{
 			Id:             int(notification.Id),
 			ReceiversNames: getNamesFromNotifications(notifications, usersData, notification),
 			Message:        notification.Message,
@@ -247,7 +247,7 @@ func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, err
 		})
 	}
 
-	return history, nil
+	return track, nil
 }
 
 // Helper function to get names from notifications

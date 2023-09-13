@@ -112,15 +112,15 @@ func GetUnseenNotifications(c *fiber.Ctx) error {
 	})
 }
 
-// GetHistory GET /history
-func GetHistory(c *fiber.Ctx) error {
+// GetTrack GET /track
+func GetTrack(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
 	if err != nil {
 		return err
 	}
 	lastId := c.Params("lastId")
 
-	history, err := notifications.GetHistory(database.DB, username, lastId)
+	history, err := notifications.GetTrack(database.DB, username, lastId)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
@@ -129,9 +129,9 @@ func GetHistory(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(HistoryResponse{
+	return c.Status(fiber.StatusOK).JSON(TrackResponse{
 		Status:  "success",
-		Message: "History successfully get",
+		Message: "Track successfully get",
 		Data:    history,
 	})
 }
