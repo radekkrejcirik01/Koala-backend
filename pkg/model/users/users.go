@@ -34,7 +34,7 @@ func CreateUser(db *gorm.DB, t *User) error {
 	t.Password = middleware.GetHashPassword(t.Password)
 
 	return db.Transaction(func(tx *gorm.DB) error {
-		if rows := db.
+		if rows := tx.
 			Table("users").
 			Where("username = ?", t.Username).
 			FirstOrCreate(&t).
@@ -47,18 +47,14 @@ func CreateUser(db *gorm.DB, t *User) error {
 
 // LoginUser in users table
 func LoginUser(db *gorm.DB, t *Login) error {
-	var user User
 	t.Password = middleware.GetHashPassword(t.Password)
 
-	if err := db.
+	var user User
+	return db.
 		Table("users").
 		Where("username = ? AND password = ?", t.Username, t.Password).
 		First(&user).
-		Error; err != nil {
-		return err
-	}
-
-	return nil
+		Error
 }
 
 // GetUser from users table

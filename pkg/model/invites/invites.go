@@ -71,7 +71,7 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		return db.Table("invites").Create(&newInvite).Error
+		return tx.Table("invites").Create(&newInvite).Error
 	})
 	if err != nil {
 		return "", err
@@ -108,7 +108,7 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		return db.
+		return tx.
 			Table("invites").
 			Where("receiver = ? AND sender = ?", t.Sender, t.Receiver).
 			Update("accepted", 1).

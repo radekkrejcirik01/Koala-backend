@@ -69,7 +69,7 @@ func SendEmotionNotification(db *gorm.DB, t *EmotionNotification, username strin
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		return db.Table("notifications").Create(&n).Error
+		return tx.Table("notifications").Create(&n).Error
 	})
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		return db.Table("notifications").Create(&notification).Error
+		return tx.Table("notifications").Create(&notification).Error
 	})
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 	}
 
 	err = db.Transaction(func(tx *gorm.DB) error {
-		return db.Table("notifications_likes").Create(&notificationLike).Error
+		return tx.Table("notifications_likes").Create(&notificationLike).Error
 	})
 	if err != nil {
 		return err
