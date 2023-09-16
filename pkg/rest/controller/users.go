@@ -18,15 +18,20 @@ func CreateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	message, createErr := users.CreateUser(database.DB, t)
+	err := users.CreateUser(database.DB, t)
+	if err != nil {
+		status := fiber.StatusInternalServerError
 
-	if createErr != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+		if err.Error() == "user already exists" {
+			status = fiber.StatusOK
+		}
+
+		return c.Status(status).JSON(Response{
 			Status:  "error",
-			Message: createErr.Error(),
+			Message: err.Error(),
 		})
-	}
 
+	}
 	token, tokenErr := middleware.CreateJWT(t.Username)
 	if tokenErr != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -36,7 +41,7 @@ func CreateUser(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(AuthResponse{
 		Status:  "success",
-		Message: message,
+		Message: "User successfully created",
 		Token:   token,
 	})
 }

@@ -69,7 +69,11 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 		Sender:   t.Sender,
 		Receiver: t.Receiver,
 	}
-	if err := db.Table("invites").Create(&newInvite).Error; err != nil {
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		return db.Table("invites").Create(&newInvite).Error
+	})
+	if err != nil {
 		return "", err
 	}
 
@@ -103,11 +107,13 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "You have already added 3 people", nil
 	}
 
-	err := db.
-		Table("invites").
-		Where("receiver = ? AND sender = ?", t.Sender, t.Receiver).
-		Update("accepted", 1).
-		Error
+	err := db.Transaction(func(tx *gorm.DB) error {
+		return db.
+			Table("invites").
+			Where("receiver = ? AND sender = ?", t.Sender, t.Receiver).
+			Update("accepted", 1).
+			Error
+	})
 
 	tokens, err := service.GetTokensByUsername(db, t.Receiver)
 	if err != nil {

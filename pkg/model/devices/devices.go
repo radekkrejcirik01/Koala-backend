@@ -13,13 +13,17 @@ func (Device) TableName() string {
 }
 
 func SaveDevice(db *gorm.DB, t *Device) error {
-	return db.Table("devices").FirstOrCreate(t, t).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		return db.Table("devices").FirstOrCreate(t, t).Error
+	})
 }
 
 func DeleteDevice(db *gorm.DB, username string) error {
-	return db.
-		Table("devices").
-		Where("username = ?", username).
-		Delete(&Device{}).
-		Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		return db.
+			Table("devices").
+			Where("username = ?", username).
+			Delete(&Device{}).
+			Error
+	})
 }

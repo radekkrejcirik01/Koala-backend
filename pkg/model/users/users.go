@@ -1,6 +1,8 @@
 package users
 
 import (
+	"errors"
+
 	"github.com/radekkrejcirik01/Koala-backend/pkg/middleware"
 	"gorm.io/gorm"
 )
@@ -28,18 +30,19 @@ type UserData struct {
 }
 
 // CreateUser in users table
-func CreateUser(db *gorm.DB, t *User) (string, error) {
+func CreateUser(db *gorm.DB, t *User) error {
 	t.Password = middleware.GetHashPassword(t.Password)
 
-	if rows := db.
-		Table("users").
-		Where("username = ?", t.Username).
-		FirstOrCreate(&t).
-		RowsAffected; rows == 0 {
-		return "User already exists", nil
-	}
-
-	return "", nil
+	return db.Transaction(func(tx *gorm.DB) error {
+		if rows := db.
+			Table("users").
+			Where("username = ?", t.Username).
+			FirstOrCreate(&t).
+			RowsAffected; rows == 0 {
+			return errors.New("user already exists")
+		}
+		return nil
+	})
 }
 
 // LoginUser in users table

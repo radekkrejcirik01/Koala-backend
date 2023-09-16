@@ -10,37 +10,38 @@ import (
 
 // DeleteAccount delete user from tables
 func DeleteAccount(db *gorm.DB, username string) error {
-	if err := db.
-		Table("users").
-		Where("username = ?", username).
-		Delete(&users.User{}).
-		Error; err != nil {
-		return err
-	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := db.
+			Table("users").
+			Where("username = ?", username).
+			Delete(&users.User{}).
+			Error; err != nil {
+			return err
+		}
 
-	if err := db.
-		Table("devices").
-		Where("username = ?", username).
-		Delete(&devices.Device{}).
-		Error; err != nil {
-		return err
-	}
+		if err := db.
+			Table("devices").
+			Where("username = ?", username).
+			Delete(&devices.Device{}).
+			Error; err != nil {
+			return err
+		}
 
-	if err := db.
-		Table("invites").
-		Where("sender = ? OR receiver = ?", username, username).
-		Delete(&invites.Invite{}).
-		Error; err != nil {
-		return err
-	}
+		if err := db.
+			Table("invites").
+			Where("sender = ? OR receiver = ?", username, username).
+			Delete(&invites.Invite{}).
+			Error; err != nil {
+			return err
+		}
 
-	if err := db.
-		Table("notifications").
-		Where("sender = ? OR receiver = ?", username, username).
-		Delete(&notifications.Notification{}).
-		Error; err != nil {
-		return err
-	}
-
-	return nil
+		if err := db.
+			Table("notifications").
+			Where("sender = ? OR receiver = ?", username, username).
+			Delete(&notifications.Notification{}).
+			Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
