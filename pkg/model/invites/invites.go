@@ -1,8 +1,6 @@
 package invites
 
 import (
-	"strings"
-
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
 	"gorm.io/gorm"
@@ -20,9 +18,6 @@ func (Invite) TableName() string {
 }
 
 func SendInvite(db *gorm.DB, t *Invite) (string, error) {
-	t.Sender = strings.ToLower(t.Sender)
-	t.Receiver = strings.ToLower(t.Receiver)
-
 	if t.Sender == t.Receiver {
 		return "Why are you inviting yourself? 😀", nil
 	}
@@ -52,6 +47,9 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 	if len(user.Username) == 0 {
 		return "There is no user with this username", nil
 	}
+
+	// Rewrite case-insensitive username with db username
+	t.Receiver = user.Username
 
 	var invite Invite
 	if err := db.
