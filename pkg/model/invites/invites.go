@@ -87,7 +87,7 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 
 	fcmNotification := service.FcmNotification{
 		Title:   t.Sender,
-		Body:    t.Sender + " sends a friend invite",
+		Body:    t.Sender + " is sending a friend invite",
 		Sound:   "default",
 		Devices: tokens,
 	}

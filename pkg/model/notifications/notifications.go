@@ -124,8 +124,8 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   t.Name,
-		Body:    t.Name + " is sending support ❤️‍🩹",
+		Title:   t.Name + " is sending support ❤️‍🩹",
+		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,
 	}
