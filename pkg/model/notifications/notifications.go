@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const EmotionsNotificationType = "emotion"
+const EmotionNotificationType = "emotion"
 const SupportNotificationType = "support"
 
 type Notification struct {
@@ -63,7 +63,7 @@ func SendEmotionNotification(db *gorm.DB, t *EmotionNotification, username strin
 		n = append(n, Notification{
 			Sender:   username,
 			Receiver: receiver,
-			Type:     EmotionsNotificationType,
+			Type:     EmotionNotificationType,
 			Message:  t.Message,
 		})
 	}
@@ -207,7 +207,6 @@ func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
 	if err := db.
 		Table("notifications").
 		Where("receiver = ? AND seen = 0", username).
-		Count(&unseenNotifications).
 		Count(&unseenNotifications).
 		Error; err != nil {
 		return nil, err
