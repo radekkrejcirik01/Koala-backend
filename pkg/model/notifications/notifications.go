@@ -46,6 +46,7 @@ type NotificationData struct {
 	Message string `json:"message"`
 	Liked   *int   `json:"liked"`
 	Time    int64  `json:"time"`
+	Seen    int    `json:"seen"`
 }
 
 type TrackData struct {
@@ -194,6 +195,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 			Message: notification.Message,
 			Liked:   isNotificationLiked(int(notification.Id), likedNotificationsIds),
 			Time:    notification.Time,
+			Seen:    notification.Seen,
 		})
 	}
 
