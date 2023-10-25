@@ -110,6 +110,19 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "You have already added 3 people", nil
 	}
 
+	var acceptedNumber int64
+	if err := db.
+		Table("invites").
+		Where("(sender = ? OR receiver = ?) AND accepted = 1", t.Receiver, t.Receiver).
+		Count(&acceptedNumber).
+		Error; err != nil {
+		return "", err
+	}
+
+	if acceptedNumber >= 3 {
+		return "This user has already added 3 people", nil
+	}
+
 	err := db.Transaction(func(tx *gorm.DB) error {
 		return tx.
 			Table("invites").
