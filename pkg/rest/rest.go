@@ -27,6 +27,7 @@ func Create() *fiber.App {
 
 	app.Delete("/account", controller.DeleteAccount)
 	app.Delete("/device", controller.DeleteDevice)
+	app.Delete("/friend/:id", controller.RemoveFriend)
 
 	return app
 }

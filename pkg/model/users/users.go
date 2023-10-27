@@ -25,6 +25,7 @@ type Login struct {
 }
 
 type UserData struct {
+	Id       int64  `json:"id,omitempty"`
 	Username string `json:"username"`
 	Name     string `json:"name"`
 }

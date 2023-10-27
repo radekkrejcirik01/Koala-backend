@@ -146,7 +146,7 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 }
 
 // GetFriends gets friend from invites
-func GetFriends(db *gorm.DB, username string) (*[]users.UserData, error) {
+func GetFriends(db *gorm.DB, username string) ([]users.UserData, error) {
 	var invites []Invite
 
 	if err := db.
@@ -174,7 +174,7 @@ func GetFriends(db *gorm.DB, username string) (*[]users.UserData, error) {
 		usersData = append(usersData, user)
 	}
 
-	return &usersData, nil
+	return usersData, nil
 }
 
 // GetFriendRequests gets friend requests from invites
@@ -200,6 +200,29 @@ func GetFriendRequests(db *gorm.DB, username string) (*[]users.UserData, error) 
 	}
 
 	return &usersData, nil
+}
+
+// RemoveFriend remove invite from invites table
+func RemoveFriend(db *gorm.DB, id string, username string) error {
+	var user string
+
+	if err := db.
+		Table("users").
+		Select("username").
+		Where("id = ?", id).
+		Find(&user).
+		Error; err != nil {
+		return err
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("invites").
+			Where("(sender = ? AND receiver = ?) OR (sender = ? AND receiver = ?)",
+				user, username, username, user).
+			Delete(&Invite{}).
+			Error
+	})
 }
 
 // Helper function to get usernames from invites

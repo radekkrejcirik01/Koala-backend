@@ -90,7 +90,7 @@ func GetFriends(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(FriendsResponse{
 		Status:  "success",
 		Message: "Friends successfully got",
-		Data:    *friends,
+		Data:    friends,
 	})
 }
 
@@ -113,5 +113,27 @@ func GetFriendRequests(c *fiber.Ctx) error {
 		Status:  "success",
 		Message: "Friend requests successfully got",
 		Data:    *friendRequests,
+	})
+}
+
+// RemoveFriend DELETE /friend/:id
+func RemoveFriend(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Params("id")
+
+	if err := invites.RemoveFriend(database.DB, id, username); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Friend removed",
 	})
 }
