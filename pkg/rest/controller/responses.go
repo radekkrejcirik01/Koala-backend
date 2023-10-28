@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 )
@@ -17,9 +18,10 @@ type AuthResponse struct {
 }
 
 type UserResponse struct {
-	Status  string         `json:"status"`
-	Message string         `json:"message,omitempty"`
-	Data    users.UserData `json:"data,omitempty"`
+	Status   string                  `json:"status"`
+	Message  string                  `json:"message,omitempty"`
+	Data     users.UserData          `json:"data,omitempty"`
+	Emotions []emotions.EmotionsData `json:"emotions,omitempty"`
 }
 
 type FriendsResponse struct {
@@ -44,4 +46,10 @@ type TrackResponse struct {
 	Status  string                    `json:"status"`
 	Message string                    `json:"message,omitempty"`
 	Data    []notifications.TrackData `json:"data,omitempty"`
+}
+
+type EmotionsResponse struct {
+	Status  string                  `json:"status"`
+	Message string                  `json:"message,omitempty"`
+	Data    []emotions.EmotionsData `json:"data,omitempty"`
 }

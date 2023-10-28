@@ -9,6 +9,7 @@ import (
 	fiberadapter "github.com/awslabs/aws-lambda-go-api-proxy/fiber"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/devices"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
@@ -25,6 +26,7 @@ func init() {
 		&devices.Device{},
 		&notifications.Notification{},
 		&notifications.NotificationLike{},
+		&emotions.Emotion{},
 	); err != nil {
 		log.Fatal(err)
 	}

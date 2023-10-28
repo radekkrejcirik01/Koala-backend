@@ -85,7 +85,7 @@ func GetUser(c *fiber.Ctx) error {
 		return err
 	}
 
-	user, getErr := users.GetUser(database.DB, username)
+	user, emotions, getErr := users.GetUser(database.DB, username)
 	if getErr != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
@@ -94,8 +94,9 @@ func GetUser(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(UserResponse{
-		Status:  "success",
-		Message: "User successfully got",
-		Data:    user,
+		Status:   "success",
+		Message:  "User successfully got",
+		Data:     user,
+		Emotions: emotions,
 	})
 }

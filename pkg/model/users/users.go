@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/middleware"
+	e "github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"gorm.io/gorm"
 )
 
@@ -59,18 +60,29 @@ func LoginUser(db *gorm.DB, t *Login) error {
 }
 
 // GetUser from users table
-func GetUser(db *gorm.DB, username string) (UserData, error) {
+func GetUser(db *gorm.DB, username string) (UserData, []e.EmotionsData, error) {
 	var user UserData
+	var emotions []e.Emotion
 
-	err := db.
+	if err := db.
 		Table("users").
 		Select("username, name").
 		Where("username = ?", username).
 		Find(&user).
-		Error
-	if err != nil {
-		return UserData{}, err
+		Error; err != nil {
+		return UserData{}, nil, err
 	}
 
-	return user, nil
+	if err := db.
+		Table("emotions").
+		Select("id, emotion, message, tip1, tip2").
+		Where("username = ?", username).
+		Find(&emotions).
+		Error; err != nil {
+		return UserData{}, nil, err
+	}
+
+	emotionsData := e.GetEmotionsData(emotions)
+
+	return user, emotionsData, nil
 }
