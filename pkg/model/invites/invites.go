@@ -31,8 +31,8 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "", err
 	}
 
-	if friendsNumber >= 3 {
-		return "This user has already added 3 people", nil
+	if friendsNumber >= 5 {
+		return "This user has already added 5 people", nil
 	}
 
 	var user users.UserData
@@ -106,8 +106,8 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "", err
 	}
 
-	if friendsNumber >= 3 {
-		return "You have already added 3 people", nil
+	if friendsNumber >= 5 {
+		return "You have already added 5 people", nil
 	}
 
 	var acceptedNumber int64
@@ -119,8 +119,8 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "", err
 	}
 
-	if acceptedNumber >= 3 {
-		return "This user has already added 3 people", nil
+	if acceptedNumber >= 5 {
+		return "This user has already added 5 people", nil
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
