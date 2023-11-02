@@ -23,6 +23,7 @@ func Create() *fiber.App {
 	app.Post("/device", controller.SaveDevice)
 	app.Post("/emotion-notification", controller.SendEmotionNotification)
 	app.Post("/support-notification", controller.SendSupportNotification)
+	app.Post("/message-notification", controller.SendMessageNotification)
 	app.Post("/emotion", controller.AddEmotion)
 
 	app.Put("/invite", controller.AcceptInvite)

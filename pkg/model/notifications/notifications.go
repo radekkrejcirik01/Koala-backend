@@ -10,6 +10,7 @@ import (
 
 const EmotionNotificationType = "emotion"
 const SupportNotificationType = "support"
+const MessageNotificationType = "message"
 
 type Notification struct {
 	Id       uint `gorm:"primary_key;auto_increment;not_null"`
@@ -33,6 +34,12 @@ type EmotionNotification struct {
 
 type SupportNotification struct {
 	Id       int
+	Receiver string
+	Name     string
+	Message  string
+}
+
+type MessageNotification struct {
 	Receiver string
 	Name     string
 	Message  string
@@ -126,6 +133,37 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 
 	fcmNotification := service.FcmNotification{
 		Title:   t.Name + " is sending support ❤️",
+		Body:    t.Message,
+		Sound:   "default",
+		Devices: tokens,
+	}
+
+	return service.SendNotification(&fcmNotification)
+}
+
+// SendMessageNotification sends message notification
+func SendMessageNotification(db *gorm.DB, t *MessageNotification, username string) error {
+	notification := Notification{
+		Sender:   username,
+		Receiver: t.Receiver,
+		Type:     MessageNotificationType,
+		Message:  t.Message,
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		return tx.Table("notifications").Create(&notification).Error
+	})
+	if err != nil {
+		return err
+	}
+
+	tokens, err := service.GetTokensByUsername(db, t.Receiver)
+	if err != nil {
+		return err
+	}
+
+	fcmNotification := service.FcmNotification{
+		Title:   t.Name + " is sending message",
 		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,

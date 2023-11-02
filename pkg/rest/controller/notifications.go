@@ -65,6 +65,35 @@ func SendSupportNotification(c *fiber.Ctx) error {
 	})
 }
 
+// SendMessageNotification POST /message-notification
+func SendMessageNotification(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	t := &notifications.MessageNotification{}
+
+	if err := c.BodyParser(t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	if err := notifications.SendMessageNotification(database.DB, t, username); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Message notification successfully sent",
+	})
+}
+
 // GetNotifications GET /notifications/:lastId?
 func GetNotifications(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
