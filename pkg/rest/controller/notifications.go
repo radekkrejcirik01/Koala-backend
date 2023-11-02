@@ -141,6 +141,28 @@ func GetUnseenNotifications(c *fiber.Ctx) error {
 	})
 }
 
+// UpdateSeenNotification PUT /notification/:id
+func UpdateSeenNotification(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Params("id")
+
+	if err := notifications.UpdateSeenNotification(database.DB, username, id); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Seen notification successfully updated",
+	})
+}
+
 // GetTrack GET /track
 func GetTrack(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)

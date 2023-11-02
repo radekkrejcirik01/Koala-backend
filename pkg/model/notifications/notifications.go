@@ -255,6 +255,17 @@ func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
 	return &unseenNotifications, nil
 }
 
+// UpdateSeenNotification update unseen notification in notifications table
+func UpdateSeenNotification(db *gorm.DB, username, id string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("notifications").
+			Where("id = ? AND receiver = ? AND seen = 0", id, username).
+			Update("seen", 1).
+			Error
+	})
+}
+
 // GetTrack gets track of sent notifications from notifications table
 func GetTrack(db *gorm.DB, username string, lastId string) ([]TrackData, error) {
 	var notifications []Notification

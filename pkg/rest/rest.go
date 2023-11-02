@@ -27,6 +27,7 @@ func Create() *fiber.App {
 	app.Post("/emotion", controller.AddEmotion)
 
 	app.Put("/invite", controller.AcceptInvite)
+	app.Put("/notification/:id", controller.UpdateSeenNotification)
 
 	app.Delete("/account", controller.DeleteAccount)
 	app.Delete("/device", controller.DeleteDevice)
