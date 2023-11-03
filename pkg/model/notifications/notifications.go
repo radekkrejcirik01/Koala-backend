@@ -13,13 +13,14 @@ const SupportNotificationType = "support"
 const MessageNotificationType = "message"
 
 type Notification struct {
-	Id       uint `gorm:"primary_key;auto_increment;not_null"`
-	Sender   string
-	Receiver string
-	Type     string
-	Message  string
-	Time     int64 `gorm:"autoCreateTime"`
-	Seen     int   `gorm:"default:0"`
+	Id             uint `gorm:"primary_key;auto_increment;not_null"`
+	Sender         string
+	Receiver       string
+	Type           string
+	Message        string
+	Time           int64 `gorm:"autoCreateTime"`
+	Seen           int   `gorm:"default:0"`
+	ConversationId *int64
 }
 
 func (Notification) TableName() string {
@@ -40,20 +41,29 @@ type SupportNotification struct {
 }
 
 type MessageNotification struct {
-	Receiver string
-	Name     string
-	Message  string
+	Receiver       string
+	Name           string
+	Message        string
+	ConversationId int64
 }
 
 type NotificationData struct {
-	Id      int    `json:"id"`
-	Sender  string `json:"sender"`
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Message string `json:"message"`
-	Liked   *int   `json:"liked"`
-	Time    int64  `json:"time"`
-	Seen    int    `json:"seen"`
+	Id             int    `json:"id"`
+	Sender         string `json:"sender"`
+	Name           string `json:"name"`
+	Type           string `json:"type"`
+	Message        string `json:"message"`
+	Liked          *int   `json:"liked"`
+	Time           int64  `json:"time"`
+	Seen           int    `json:"seen"`
+	ConversationId *int64 `json:"conversationId,omitempty"`
+}
+
+type Conversation struct {
+	Id       int64  `json:"id"`
+	Sender   string `json:"sender"`
+	Receiver string `json:"receiver"`
+	Message  string `json:"message"`
 }
 
 type TrackData struct {
@@ -144,10 +154,11 @@ func SendSupportNotification(db *gorm.DB, t *SupportNotification, username strin
 // SendMessageNotification sends message notification
 func SendMessageNotification(db *gorm.DB, t *MessageNotification, username string) error {
 	notification := Notification{
-		Sender:   username,
-		Receiver: t.Receiver,
-		Type:     MessageNotificationType,
-		Message:  t.Message,
+		Sender:         username,
+		Receiver:       t.Receiver,
+		Type:           MessageNotificationType,
+		Message:        t.Message,
+		ConversationId: &t.ConversationId,
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -226,18 +237,35 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 	var notificationsData []NotificationData
 	for _, notification := range notifications {
 		notificationsData = append(notificationsData, NotificationData{
-			Id:      int(notification.Id),
-			Sender:  notification.Sender,
-			Name:    getName(usersData, notification.Sender),
-			Type:    notification.Type,
-			Message: notification.Message,
-			Liked:   isNotificationLiked(int(notification.Id), likedNotificationsIds),
-			Time:    notification.Time,
-			Seen:    notification.Seen,
+			Id:             int(notification.Id),
+			Sender:         notification.Sender,
+			Name:           getName(usersData, notification.Sender),
+			Type:           notification.Type,
+			Message:        notification.Message,
+			Liked:          isNotificationLiked(int(notification.Id), likedNotificationsIds),
+			Time:           notification.Time,
+			Seen:           notification.Seen,
+			ConversationId: notification.ConversationId,
 		})
 	}
 
 	return notificationsData, nil
+}
+
+// GetConversation messages from notifications table
+func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
+	var conversation []Conversation
+
+	if err := db.
+		Table("notifications").
+		Select("id, sender, receiver, message").
+		Where("id = ? OR conversation_id = ?", id, id).
+		Find(&conversation).
+		Error; err != nil {
+		return nil, err
+	}
+
+	return conversation, nil
 }
 
 // GetUnseenNotifications get unseen notifications from notifications table

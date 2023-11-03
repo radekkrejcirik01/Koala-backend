@@ -13,6 +13,7 @@ func Create() *fiber.App {
 	app.Get("/friends", controller.GetFriends)
 	app.Get("/friend-requests", controller.GetFriendRequests)
 	app.Get("/notifications/:lastId?", controller.GetNotifications)
+	app.Get("/conversation/:id", controller.GetConversation)
 	app.Get("/unseen-notifications", controller.GetUnseenNotifications)
 	app.Get("/track/:lastId?", controller.GetTrack)
 	app.Get("/emotions", controller.GetEmotions)

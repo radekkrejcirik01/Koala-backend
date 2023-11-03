@@ -118,6 +118,30 @@ func GetNotifications(c *fiber.Ctx) error {
 	})
 }
 
+// GetConversation GET /conversation/:id
+func GetConversation(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+	id := c.Params("id")
+
+	conversation, err := notifications.GetConversation(database.DB, username, id)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(ConversationResponse{
+		Status:  "success",
+		Message: "Conversation successfully get",
+		Data:    conversation,
+	})
+}
+
 // GetUnseenNotifications GET /unseen-notifications
 func GetUnseenNotifications(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
