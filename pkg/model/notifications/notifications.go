@@ -174,7 +174,7 @@ func SendMessageNotification(db *gorm.DB, t *MessageNotification, username strin
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   t.Name + " is sending message",
+		Title:   t.Name,
 		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,
