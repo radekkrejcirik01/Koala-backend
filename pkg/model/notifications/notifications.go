@@ -64,6 +64,7 @@ type Conversation struct {
 	Sender   string `json:"sender"`
 	Receiver string `json:"receiver"`
 	Message  string `json:"message"`
+	Time     int64  `json:"time"`
 }
 
 type TrackData struct {
@@ -245,7 +246,7 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, message").
+		Select("id, sender, receiver, message, time").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {
