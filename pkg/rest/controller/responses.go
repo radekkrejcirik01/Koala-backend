@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 )
@@ -28,6 +29,12 @@ type FriendsResponse struct {
 	Status  string           `json:"status"`
 	Message string           `json:"message,omitempty"`
 	Data    []users.UserData `json:"data,omitempty"`
+}
+
+type InvitesResponse struct {
+	Status  string               `json:"status"`
+	Message string               `json:"message,omitempty"`
+	Data    []invites.InviteData `json:"data,omitempty"`
 }
 
 type NotificationsResponse struct {

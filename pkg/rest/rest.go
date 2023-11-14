@@ -12,6 +12,7 @@ func Create() *fiber.App {
 	app.Get("/user", controller.GetUser)
 	app.Get("/friends", controller.GetFriends)
 	app.Get("/friend-requests", controller.GetFriendRequests)
+	app.Get("/invites", controller.GetInvites)
 	app.Get("/notifications/:lastId?", controller.GetNotifications)
 	app.Get("/conversation/:id", controller.GetConversation)
 	app.Get("/unseen-notifications", controller.GetUnseenNotifications)
@@ -33,6 +34,7 @@ func Create() *fiber.App {
 	app.Delete("/account", controller.DeleteAccount)
 	app.Delete("/device", controller.DeleteDevice)
 	app.Delete("/friend/:id", controller.RemoveFriend)
+	app.Delete("/invite/:id", controller.RemoveInvite)
 	app.Delete("/emotion/:id", controller.RemoveEmotion)
 
 	return app

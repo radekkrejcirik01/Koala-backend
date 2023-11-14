@@ -116,6 +116,28 @@ func GetFriendRequests(c *fiber.Ctx) error {
 	})
 }
 
+// GetInvites GET /invites
+func GetInvites(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	invites, err := invites.GetInvites(database.DB, username)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(InvitesResponse{
+		Status:  "success",
+		Message: "Friend invites successfully got",
+		Data:    invites,
+	})
+}
+
 // RemoveFriend DELETE /friend/:id
 func RemoveFriend(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
@@ -135,5 +157,27 @@ func RemoveFriend(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(Response{
 		Status:  "success",
 		Message: "Friend removed",
+	})
+}
+
+// RemoveInvite DELETE /invite/:id
+func RemoveInvite(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Params("id")
+
+	if err := invites.RemoveInvite(database.DB, id, username); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Inivte removed",
 	})
 }
