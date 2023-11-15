@@ -253,6 +253,19 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 		return nil, err
 	}
 
+	// Update seen attribute of unseen messages in conversation
+	err := db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("notifications").
+			Where("(id = ? OR conversation_id = ?) AND receiver = ? AND seen = 0",
+				id, id, username).
+			Update("seen", 1).
+			Error
+	})
+	if err != nil {
+		fmt.Print(err.Error())
+	}
+
 	return conversation, nil
 }
 
@@ -273,13 +286,7 @@ func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
 
 // UpdateSeenNotification update unseen notification in notifications table
 func UpdateSeenNotification(db *gorm.DB, username, id string) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("notifications").
-			Where("id = ? AND receiver = ? AND seen = 0", id, username).
-			Update("seen", 1).
-			Error
-	})
+	return nil
 }
 
 // GetTrack gets track of sent notifications from notifications table

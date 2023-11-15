@@ -11,7 +11,7 @@ func Create() *fiber.App {
 
 	app.Get("/user", controller.GetUser)
 	app.Get("/friends", controller.GetFriends)
-	app.Get("/friend-requests", controller.GetFriendRequests)
+	app.Get("/friend-requests", controller.GetFriendRequests) // Delete
 	app.Get("/invites", controller.GetInvites)
 	app.Get("/notifications/:lastId?", controller.GetNotifications)
 	app.Get("/conversation/:id", controller.GetConversation)
@@ -24,12 +24,12 @@ func Create() *fiber.App {
 	app.Post("/invite", controller.SendInvite)
 	app.Post("/device", controller.SaveDevice)
 	app.Post("/emotion-notification", controller.SendEmotionNotification)
-	app.Post("/support-notification", controller.SendSupportNotification)
+	app.Post("/support-notification", controller.SendSupportNotification) // Delete
 	app.Post("/message-notification", controller.SendMessageNotification)
 	app.Post("/emotion", controller.AddEmotion)
 
 	app.Put("/invite", controller.AcceptInvite)
-	app.Put("/notification/:id", controller.UpdateSeenNotification)
+	app.Put("/notification/:id", controller.UpdateSeenNotification) // Delete
 
 	app.Delete("/account", controller.DeleteAccount)
 	app.Delete("/device", controller.DeleteDevice)
