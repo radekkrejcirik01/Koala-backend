@@ -204,15 +204,6 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		return nil, err
 	}
 
-	// Update seen notifications
-	if err := db.
-		Table("notifications").
-		Where("receiver = ? AND seen = 0", username).
-		Update("seen", 1).
-		Error; err != nil {
-		return nil, err
-	}
-
 	usernames := getSendersFromNotifications(notifications)
 
 	if err := db.
