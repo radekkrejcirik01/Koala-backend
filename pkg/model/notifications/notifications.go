@@ -13,13 +13,13 @@ const SupportNotificationType = "support"
 const MessageNotificationType = "message"
 
 type Notification struct {
-	Id             uint `gorm:"primary_key;auto_increment;not_null"`
-	Sender         string
-	Receiver       string
+	Id             uint   `gorm:"primary_key;auto_increment;not_null"`
+	Sender         string `gorm:"size:256"`
+	Receiver       string `gorm:"size:256"`
 	Type           string
-	Message        string
-	Time           int64 `gorm:"autoCreateTime"`
-	Seen           int   `gorm:"default:0"`
+	Message        string `gorm:"size:256"`
+	Time           int64  `gorm:"autoCreateTime"`
+	Seen           int    `gorm:"default:0"`
 	ConversationId *int64
 }
 
@@ -206,6 +206,18 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 	usernames := getSendersFromNotifications(notifications)
 
+	// Update seen attribute of unseen messages in conversation
+	err := db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("notifications").
+			Where("receiver = ? AND seen = 0", username).
+			Update("seen", 1).
+			Error
+	})
+	if err != nil {
+		fmt.Print(err.Error())
+	}
+
 	if err := db.
 		Table("users").
 		Where("username IN ?", usernames).
@@ -242,19 +254,6 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 		Find(&conversation).
 		Error; err != nil {
 		return nil, err
-	}
-
-	// Update seen attribute of unseen messages in conversation
-	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("notifications").
-			Where("(id = ? OR conversation_id = ?) AND receiver = ? AND seen = 0",
-				id, id, username).
-			Update("seen", 1).
-			Error
-	})
-	if err != nil {
-		fmt.Print(err.Error())
 	}
 
 	return conversation, nil
