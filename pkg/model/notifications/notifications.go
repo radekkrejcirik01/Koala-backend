@@ -243,6 +243,51 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 	return notificationsData, nil
 }
 
+// GetFilteredNotifications get notifications by user id from notifications table
+func GetFilteredNotifications(db *gorm.DB, username, userId, lastId string) ([]NotificationData, error) {
+	var notifications []Notification
+	var usersData users.UserData
+
+	var idCondition string
+	if lastId != "" {
+		idCondition = fmt.Sprintf("id < %s AND ", lastId)
+	}
+
+	if err := db.
+		Table("users").
+		Where("id = ?", userId).
+		Find(&usersData).
+		Error; err != nil {
+		return nil, nil
+	}
+
+	if err := db.
+		Table("notifications").
+		Where(idCondition+"receiver = ? AND sender = ?", username, usersData.Username).
+		Order("id DESC").
+		Limit(20).
+		Find(&notifications).
+		Error; err != nil {
+		return nil, err
+	}
+
+	var notificationsData []NotificationData
+	for _, notification := range notifications {
+		notificationsData = append(notificationsData, NotificationData{
+			Id:             int(notification.Id),
+			Sender:         notification.Sender,
+			Name:           usersData.Name,
+			Type:           notification.Type,
+			Message:        notification.Message,
+			Time:           notification.Time,
+			Seen:           notification.Seen,
+			ConversationId: notification.ConversationId,
+		})
+	}
+
+	return notificationsData, nil
+}
+
 // GetConversation messages from notifications table
 func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 	var conversation []Conversation

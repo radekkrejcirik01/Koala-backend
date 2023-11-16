@@ -14,6 +14,7 @@ func Create() *fiber.App {
 	app.Get("/friend-requests", controller.GetFriendRequests) // Delete
 	app.Get("/invites", controller.GetInvites)
 	app.Get("/notifications/:lastId?", controller.GetNotifications)
+	app.Get("/filtered-notifications/:userId/:lastId?", controller.GetFilteredNotifications)
 	app.Get("/conversation/:id", controller.GetConversation)
 	app.Get("/unseen-notifications", controller.GetUnseenNotifications)
 	app.Get("/track/:lastId?", controller.GetTrack)
