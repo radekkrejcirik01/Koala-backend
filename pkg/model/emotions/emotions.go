@@ -3,8 +3,8 @@ package emotions
 import "gorm.io/gorm"
 
 type Emotion struct {
-	Id       uint `gorm:"primary_key;auto_increment;not_null"`
-	Username string
+	Id       uint   `gorm:"primary_key;auto_increment;not_null"`
+	Username string `gorm:"size:256"`
 	Emotion  string
 	Message  string
 	Tip1     string

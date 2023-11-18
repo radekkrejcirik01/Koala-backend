@@ -10,9 +10,9 @@ import (
 
 type User struct {
 	Id           uint   `gorm:"primary_key;auto_increment;not_null" json:"id"`
-	Username     string `json:"username"`
-	Name         string `json:"name"`
-	ProfilePhoto string `json:"profilePhoto"`
+	Username     string `gorm:"size:256"`
+	Name         string `gorm:"size:256"`
+	ProfilePhoto string
 	Password     string
 }
 

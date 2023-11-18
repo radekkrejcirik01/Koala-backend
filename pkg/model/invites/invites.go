@@ -7,9 +7,9 @@ import (
 )
 
 type Invite struct {
-	Id       uint `gorm:"primary_key;auto_increment;not_null"`
-	Sender   string
-	Receiver string
+	Id       uint   `gorm:"primary_key;auto_increment;not_null"`
+	Sender   string `gorm:"size:256"`
+	Receiver string `gorm:"size:256"`
 	Accepted int
 }
 
