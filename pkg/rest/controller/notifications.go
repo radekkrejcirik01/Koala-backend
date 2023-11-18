@@ -36,35 +36,6 @@ func SendEmotionNotification(c *fiber.Ctx) error {
 	})
 }
 
-// SendSupportNotification POST /support-notification
-func SendSupportNotification(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-
-	t := &notifications.SupportNotification{}
-
-	if err := c.BodyParser(t); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	if err := notifications.SendSupportNotification(database.DB, t, username); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(Response{
-		Status:  "success",
-		Message: "Support notification successfully sent",
-	})
-}
-
 // SendMessageNotification POST /message-notification
 func SendMessageNotification(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)

@@ -9,7 +9,6 @@ import (
 )
 
 const EmotionNotificationType = "emotion"
-const SupportNotificationType = "support"
 const MessageNotificationType = "message"
 
 type Notification struct {
@@ -33,13 +32,6 @@ type EmotionNotification struct {
 	Message   string
 }
 
-type SupportNotification struct {
-	Id       int
-	Receiver string
-	Name     string
-	Message  string
-}
-
 type MessageNotification struct {
 	Receiver       string
 	Name           string
@@ -53,7 +45,6 @@ type NotificationData struct {
 	Name           string `json:"name"`
 	Type           string `json:"type"`
 	Message        string `json:"message"`
-	Liked          *int   `json:"liked"`
 	Time           int64  `json:"time"`
 	Seen           int    `json:"seen"`
 	ConversationId *int64 `json:"conversationId,omitempty"`
@@ -101,49 +92,6 @@ func SendEmotionNotification(db *gorm.DB, t *EmotionNotification, username strin
 
 	fcmNotification := service.FcmNotification{
 		Title:   t.Name + " is sharing",
-		Body:    t.Message,
-		Sound:   "default",
-		Devices: tokens,
-	}
-
-	return service.SendNotification(&fcmNotification)
-}
-
-// SendSupportNotification sends support notification
-func SendSupportNotification(db *gorm.DB, t *SupportNotification, username string) error {
-	notification := Notification{
-		Sender:   username,
-		Receiver: t.Receiver,
-		Type:     SupportNotificationType,
-		Message:  t.Message,
-	}
-
-	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("notifications").Create(&notification).Error
-	})
-	if err != nil {
-		return err
-	}
-
-	notificationLike := NotificationLike{
-		Sender:         username,
-		NotificationId: t.Id,
-	}
-
-	err = db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("notifications_likes").Create(&notificationLike).Error
-	})
-	if err != nil {
-		return err
-	}
-
-	tokens, err := service.GetTokensByUsername(db, t.Receiver)
-	if err != nil {
-		return err
-	}
-
-	fcmNotification := service.FcmNotification{
-		Title:   t.Name + " is sending support ❤️",
 		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,

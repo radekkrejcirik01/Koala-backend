@@ -25,7 +25,6 @@ func init() {
 		&invites.Invite{},
 		&devices.Device{},
 		&notifications.Notification{},
-		&notifications.NotificationLike{},
 		&emotions.Emotion{},
 	); err != nil {
 		log.Fatal(err)
