@@ -58,6 +58,13 @@ type Conversation struct {
 	Time     int64  `json:"time"`
 }
 
+type HistoryData struct {
+	Id             int      `json:"id"`
+	ReceiversNames []string `json:"receiversNames"`
+	Message        string   `json:"message"`
+	Time           int64    `json:"time"`
+}
+
 type TrackData struct {
 	Id             int      `json:"id"`
 	ReceiversNames []string `json:"receiversNames"`
@@ -270,6 +277,51 @@ func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
 // UpdateSeenNotification update unseen notification in notifications table
 func UpdateSeenNotification(db *gorm.DB, username, id string) error {
 	return nil
+}
+
+// GetHistory get history of sahred emotions from notifications table
+func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, error) {
+	var notifications []Notification
+	var usersData []users.UserData
+
+	var idCondition string
+	if lastId != "" {
+		idCondition = fmt.Sprintf("id < %s AND ", lastId)
+	}
+
+	if err := db.
+		Table("notifications").
+		Where(idCondition+"sender = ? AND type = 'emotion'", username).
+		Order("id DESC").
+		Limit(20).
+		Find(&notifications).
+		Error; err != nil {
+		return nil, err
+	}
+
+	n := groupNotifications(notifications)
+
+	usernames := getReceiversFromNotifications(notifications)
+
+	if err := db.
+		Table("users").
+		Where("username IN ?", usernames).
+		Find(&usersData).
+		Error; err != nil {
+		return nil, err
+	}
+
+	var history []HistoryData
+	for _, notification := range n {
+		history = append(history, HistoryData{
+			Id:             int(notification.Id),
+			ReceiversNames: getNamesFromNotifications(notifications, usersData, notification),
+			Message:        notification.Message,
+			Time:           notification.Time,
+		})
+	}
+
+	return history, nil
 }
 
 // GetTrack gets track of sent notifications from notifications table

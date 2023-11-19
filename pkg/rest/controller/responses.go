@@ -55,6 +55,12 @@ type UnseenNotificationsResponse struct {
 	UnseenNotifications int64  `json:"unseenNotifications,omitempty"`
 }
 
+type HistoryResponse struct {
+	Status  string                      `json:"status"`
+	Message string                      `json:"message,omitempty"`
+	Data    []notifications.HistoryData `json:"data,omitempty"`
+}
+
 type TrackResponse struct {
 	Status  string                    `json:"status"`
 	Message string                    `json:"message,omitempty"`

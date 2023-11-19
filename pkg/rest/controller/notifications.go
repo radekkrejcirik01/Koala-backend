@@ -183,6 +183,30 @@ func UpdateSeenNotification(c *fiber.Ctx) error {
 	})
 }
 
+// GetHistory GET /history/:lastId?
+func GetHistory(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+	lastId := c.Params("lastId")
+
+	history, err := notifications.GetHistory(database.DB, username, lastId)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(HistoryResponse{
+		Status:  "success",
+		Message: "History successfully get",
+		Data:    history,
+	})
+}
+
 // GetTrack GET /track
 func GetTrack(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
