@@ -53,6 +53,7 @@ func SendNotification(t *FcmNotification) error {
 				Badge: "1",
 				Sound: t.Sound,
 			},
+			Priority: "high",
 		}
 
 		client, err := fcm.NewClient(fcmClient)
