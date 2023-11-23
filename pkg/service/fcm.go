@@ -43,6 +43,12 @@ func SendNotification(t *FcmNotification) error {
 	fcmClient := database.GetFcmClient()
 	tokens := t.Devices
 
+	client, err := fcm.NewClient(fcmClient)
+	if err != nil {
+		log.Fatalln(err)
+		return err
+	}
+
 	for _, token := range tokens {
 		msg := &fcm.Message{
 			To:   token,
@@ -56,16 +62,9 @@ func SendNotification(t *FcmNotification) error {
 			Priority: "high",
 		}
 
-		client, err := fcm.NewClient(fcmClient)
-		if err != nil {
-			log.Fatalln(err)
-			return err
-		}
-
 		response, err := client.Send(msg)
 		if err != nil {
 			log.Fatalln(err)
-			return err
 		}
 
 		log.Printf("%#v\n", response)
