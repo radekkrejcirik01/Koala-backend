@@ -5,7 +5,9 @@ import "gorm.io/gorm"
 type Device struct {
 	Id          uint   `gorm:"primary_key;auto_increment;not_null"`
 	Username    string `gorm:"size:256"`
+	UserId      int64
 	DeviceToken string
+	Platform    string
 }
 
 func (Device) TableName() string {

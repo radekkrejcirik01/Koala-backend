@@ -66,7 +66,7 @@ func GetUser(db *gorm.DB, username string) (UserData, []e.EmotionsData, error) {
 
 	if err := db.
 		Table("users").
-		Select("username, name").
+		Select("id, username, name").
 		Where("username = ?", username).
 		Find(&user).
 		Error; err != nil {
