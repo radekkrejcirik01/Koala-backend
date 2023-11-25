@@ -14,12 +14,29 @@ func (Device) TableName() string {
 	return "devices"
 }
 
+// SaveDevice add new device to devices table
 func SaveDevice(db *gorm.DB, t *Device) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("devices").FirstOrCreate(t, t).Error
-	})
+	var devices []Device
+
+	if err := db.
+		Table("devices").
+		Where("username = ? AND device_token = ?",
+			t.Username, t.DeviceToken).
+		Find(&devices).
+		Error; err != nil {
+		return err
+	}
+
+	if len(devices) == 0 {
+		return db.Transaction(func(tx *gorm.DB) error {
+			return tx.Table("devices").Create(t).Error
+		})
+	}
+
+	return nil
 }
 
+// DeleteDevice delete all devices from devices table
 func DeleteDevice(db *gorm.DB, username string) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		return tx.
