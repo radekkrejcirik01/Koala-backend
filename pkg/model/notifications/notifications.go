@@ -229,7 +229,19 @@ func GetFilteredNotifications(db *gorm.DB, username, userId, lastId string) ([]N
 
 	if err := db.
 		Table("notifications").
-		Where(idCondition+"receiver = ? AND sender = ?", username, usersData.Username).
+		Where(idCondition+`receiver = ? AND sender = ?
+		AND((id IN(
+				SELECT
+					MAX(id)
+					FROM notifications
+				WHERE
+					receiver = ?
+					AND sender = ?
+					AND TYPE = 'message'
+				GROUP BY
+					conversation_id))
+			OR TYPE = 'emotion')`,
+			username, usersData.Username, username, usersData.Username).
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
