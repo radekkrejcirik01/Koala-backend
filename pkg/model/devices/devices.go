@@ -29,7 +29,7 @@ func SaveDevice(db *gorm.DB, t *Device) error {
 
 	if len(devices) == 0 {
 		return db.Transaction(func(tx *gorm.DB) error {
-			return tx.Table("devices").Create(t).Error
+			return tx.Table("devices").Create(&t).Error
 		})
 	}
 
