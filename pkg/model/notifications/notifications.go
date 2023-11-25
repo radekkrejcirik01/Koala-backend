@@ -40,14 +40,20 @@ type MessageNotification struct {
 }
 
 type NotificationData struct {
-	Id             int    `json:"id"`
-	Sender         string `json:"sender"`
-	Name           string `json:"name"`
-	Type           string `json:"type"`
-	Message        string `json:"message"`
-	Time           int64  `json:"time"`
-	Seen           int    `json:"seen"`
-	ConversationId *int64 `json:"conversationId,omitempty"`
+	Id             int     `json:"id"`
+	Sender         string  `json:"sender"`
+	Name           string  `json:"name"`
+	Type           string  `json:"type"`
+	Message        string  `json:"message"`
+	Time           int64   `json:"time"`
+	Seen           int     `json:"seen"`
+	ConversationId *int64  `json:"conversationId,omitempty"`
+	Emotion        *string `json:"emotion,omitempty"`
+}
+
+type EmotionData struct {
+	Id      int64
+	Message string
 }
 
 type Conversation struct {
@@ -192,6 +198,20 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		return nil, err
 	}
 
+	conversationsIds := getConversationsIds(notifications)
+
+	var emotionsData []EmotionData
+	if len(conversationsIds) > 0 {
+		if err := db.
+			Table("notifications").
+			Select("id, message").
+			Where("id IN ?", conversationsIds).
+			Find(&emotionsData).
+			Error; err != nil {
+			return nil, err
+		}
+	}
+
 	var notificationsData []NotificationData
 	for _, notification := range notifications {
 		notificationsData = append(notificationsData, NotificationData{
@@ -203,6 +223,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 			Time:           notification.Time,
 			Seen:           notification.Seen,
 			ConversationId: notification.ConversationId,
+			Emotion:        getEmotionMessage(emotionsData, notification.ConversationId),
 		})
 	}
 
@@ -249,6 +270,20 @@ func GetFilteredNotifications(db *gorm.DB, username, userId, lastId string) ([]N
 		return nil, err
 	}
 
+	conversationsIds := getConversationsIds(notifications)
+
+	var emotionsData []EmotionData
+	if len(conversationsIds) > 0 {
+		if err := db.
+			Table("notifications").
+			Select("id, message").
+			Where("id IN ?", conversationsIds).
+			Find(&emotionsData).
+			Error; err != nil {
+			return nil, err
+		}
+	}
+
 	var notificationsData []NotificationData
 	for _, notification := range notifications {
 		notificationsData = append(notificationsData, NotificationData{
@@ -260,6 +295,7 @@ func GetFilteredNotifications(db *gorm.DB, username, userId, lastId string) ([]N
 			Time:           notification.Time,
 			Seen:           notification.Seen,
 			ConversationId: notification.ConversationId,
+			Emotion:        getEmotionMessage(emotionsData, notification.ConversationId),
 		})
 	}
 
@@ -444,6 +480,31 @@ func getName(usersData []users.UserData, username string) string {
 	}
 
 	return ""
+}
+
+// getEmotionMessage helper function to get emotion message by conversation id
+func getEmotionMessage(emotionsData []EmotionData, conversationId *int64) *string {
+	if conversationId != nil {
+		for _, v := range emotionsData {
+			if v.Id == *conversationId {
+				return &v.Message
+			}
+		}
+	}
+	return nil
+}
+
+// getConversationsIds helper function to get conversation ids from notifications
+func getConversationsIds(notifications []Notification) []int64 {
+	var ids []int64
+
+	for _, v := range notifications {
+		if v.ConversationId != nil {
+			ids = append(ids, *v.ConversationId)
+		}
+	}
+
+	return ids
 }
 
 // Helper function to get senders from notifications
