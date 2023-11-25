@@ -151,7 +151,18 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 	if err := db.
 		Table("notifications").
-		Where(idCondition+"receiver = ?", username).
+		Where(idCondition+`receiver = ?
+			AND((id IN(
+					SELECT
+						MAX(id)
+						FROM notifications
+					WHERE
+						receiver = ?
+						AND TYPE = 'message'
+					GROUP BY
+						conversation_id))
+				OR TYPE = 'emotion')`,
+			username, username).
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
