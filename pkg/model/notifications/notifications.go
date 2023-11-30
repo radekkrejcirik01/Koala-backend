@@ -16,10 +16,11 @@ type Notification struct {
 	Sender         string `gorm:"size:256"`
 	Receiver       string `gorm:"size:256"`
 	Type           string
-	Message        string `gorm:"size:256"`
+	Message        string `gorm:"size:512"`
 	Time           int64  `gorm:"autoCreateTime"`
 	Seen           int    `gorm:"default:0"`
 	ConversationId *int64
+	ReplyMessage   *string `gorm:"size:512"`
 }
 
 func (Notification) TableName() string {
@@ -37,6 +38,7 @@ type MessageNotification struct {
 	Name           string
 	Message        string
 	ConversationId int64
+	ReplyMessage   *string
 }
 
 type NotificationData struct {
@@ -57,11 +59,12 @@ type EmotionData struct {
 }
 
 type Conversation struct {
-	Id       int64  `json:"id"`
-	Sender   string `json:"sender"`
-	Receiver string `json:"receiver"`
-	Message  string `json:"message"`
-	Time     int64  `json:"time"`
+	Id           int64  `json:"id"`
+	Sender       string `json:"sender"`
+	Receiver     string `json:"receiver"`
+	Message      string `json:"message"`
+	Time         int64  `json:"time"`
+	ReplyMessage string `json:"replyMessage"`
 }
 
 type HistoryData struct {
@@ -121,6 +124,7 @@ func SendMessageNotification(db *gorm.DB, t *MessageNotification, username strin
 		Type:           MessageNotificationType,
 		Message:        t.Message,
 		ConversationId: &t.ConversationId,
+		ReplyMessage:   t.ReplyMessage,
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -308,7 +312,7 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, message, time").
+		Select("id, sender, receiver, message, time, reply_message").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {
