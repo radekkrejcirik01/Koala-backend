@@ -16,24 +16,14 @@ func (Device) TableName() string {
 
 // SaveDevice add new device to devices table
 func SaveDevice(db *gorm.DB, t *Device) error {
-	var devices []Device
-
-	if err := db.
-		Table("devices").
-		Where("username = ? AND device_token = ?",
-			t.Username, t.DeviceToken).
-		Find(&devices).
-		Error; err != nil {
-		return err
-	}
-
-	if len(devices) == 0 {
-		return db.Transaction(func(tx *gorm.DB) error {
-			return tx.Table("devices").Create(&t).Error
-		})
-	}
-
-	return nil
+	return db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("devices").
+			Where("username = ? AND device_token = ? AND platform IN ('ios', 'android')",
+				t.Username, t.DeviceToken).
+			FirstOrCreate(&t).
+			Error
+	})
 }
 
 // DeleteDevice delete all devices from devices table
