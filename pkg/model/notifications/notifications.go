@@ -339,7 +339,14 @@ func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
 
 // UpdateSeenNotification update unseen notification in notifications table
 func UpdateSeenNotification(db *gorm.DB, username, id string) error {
-	return nil
+	return db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("notifications").
+			Where("receiver = ? AND seen = 0 AND (conversation_id = ? OR id = ?)",
+				username, id, id).
+			Update("seen", 1).
+			Error
+	})
 }
 
 // GetHistory get history of sahred emotions from notifications table
