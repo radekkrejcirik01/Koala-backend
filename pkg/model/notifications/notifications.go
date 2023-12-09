@@ -14,7 +14,9 @@ const MessageNotificationType = "message"
 type Notification struct {
 	Id             uint   `gorm:"primary_key;auto_increment;not_null"`
 	Sender         string `gorm:"size:256"`
+	SenderId       int64
 	Receiver       string `gorm:"size:256"`
+	ReceiverId     int64
 	Type           string
 	Message        string `gorm:"size:512"`
 	Time           int64  `gorm:"autoCreateTime"`
@@ -28,12 +30,16 @@ func (Notification) TableName() string {
 }
 
 type EmotionNotification struct {
-	Receivers []string
-	Name      string
-	Message   string
+	SenderId     int64
+	ReceiversIds []int64
+	Receivers    []string
+	Name         string
+	Message      string
 }
 
 type MessageNotification struct {
+	SenderId       int64
+	ReceiverId     int64
 	Receiver       string
 	Name           string
 	Message        string
@@ -42,7 +48,8 @@ type MessageNotification struct {
 }
 
 type NotificationData struct {
-	Id             int     `json:"id"`
+	Id             int64   `json:"id"`
+	SenderId       int64   `json:"senderId"`
 	Sender         string  `json:"sender"`
 	Name           string  `json:"name"`
 	Type           string  `json:"type"`
@@ -81,17 +88,61 @@ type TrackData struct {
 	Time           int64    `json:"time"`
 }
 
+func getReceiverId(users []users.UserData, username string) int64 {
+	for _, v := range users {
+		if v.Username == username {
+			return v.Id
+		}
+	}
+	return 0
+}
+
+func getReceiver(users []users.UserData, userId int64) string {
+	for _, v := range users {
+		if v.Id == userId {
+			return v.Username
+		}
+	}
+	return ""
+}
+
 // SendEmotionNotification sends emotion notification
 func SendEmotionNotification(db *gorm.DB, t *EmotionNotification, username string) error {
 	var n []Notification
+	var users []users.UserData
 
-	for _, receiver := range t.Receivers {
-		n = append(n, Notification{
-			Sender:   username,
-			Receiver: receiver,
-			Type:     EmotionNotificationType,
-			Message:  t.Message,
-		})
+	if err := db.
+		Table("users").
+		Select("id, username").
+		Distinct().
+		Where("id IN ? OR username IN ?", t.ReceiversIds, t.Receivers).
+		Find(&users).
+		Error; err != nil {
+		return err
+	}
+
+	if len(t.ReceiversIds) > 0 {
+		for _, receiverId := range t.ReceiversIds {
+			n = append(n, Notification{
+				SenderId:   t.SenderId,
+				Sender:     username,
+				ReceiverId: receiverId,
+				Receiver:   getReceiver(users, receiverId),
+				Type:       EmotionNotificationType,
+				Message:    t.Message,
+			})
+		}
+	} else {
+		for _, receiver := range t.Receivers {
+			n = append(n, Notification{
+				SenderId:   t.SenderId,
+				Sender:     username,
+				ReceiverId: getReceiverId(users, receiver),
+				Receiver:   receiver,
+				Type:       EmotionNotificationType,
+				Message:    t.Message,
+			})
+		}
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -101,9 +152,17 @@ func SendEmotionNotification(db *gorm.DB, t *EmotionNotification, username strin
 		return err
 	}
 
-	tokens, err := service.GetTokensByUsernames(db, t.Receivers)
-	if err != nil {
-		return err
+	var tokens []string
+	if len(t.ReceiversIds) > 0 {
+		tokens, err = service.GetTokensByUserIds(db, t.ReceiversIds)
+		if err != nil {
+			return err
+		}
+	} else {
+		tokens, err = service.GetTokensByUsernames(db, t.Receivers)
+		if err != nil {
+			return err
+		}
 	}
 
 	fcmNotification := service.FcmNotification{
@@ -119,7 +178,9 @@ func SendEmotionNotification(db *gorm.DB, t *EmotionNotification, username strin
 // SendMessageNotification sends message notification
 func SendMessageNotification(db *gorm.DB, t *MessageNotification, username string) error {
 	notification := Notification{
+		SenderId:       t.SenderId,
 		Sender:         username,
+		ReceiverId:     t.ReceiverId,
 		Receiver:       t.Receiver,
 		Type:           MessageNotificationType,
 		Message:        t.Message,
@@ -134,9 +195,17 @@ func SendMessageNotification(db *gorm.DB, t *MessageNotification, username strin
 		return err
 	}
 
-	tokens, err := service.GetTokensByUsername(db, t.Receiver)
-	if err != nil {
-		return err
+	var tokens []string
+	if t.ReceiverId > 0 {
+		tokens, err = service.GetTokensByUserId(db, t.ReceiverId)
+		if err != nil {
+			return err
+		}
+	} else {
+		tokens, err = service.GetTokensByUsername(db, t.Receiver)
+		if err != nil {
+			return err
+		}
 	}
 
 	fcmNotification := service.FcmNotification{
@@ -219,7 +288,8 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 	var notificationsData []NotificationData
 	for _, notification := range notifications {
 		notificationsData = append(notificationsData, NotificationData{
-			Id:             int(notification.Id),
+			Id:             int64(notification.Id),
+			SenderId:       notification.SenderId,
 			Sender:         notification.Sender,
 			Name:           getName(usersData, notification.Sender),
 			Type:           notification.Type,
@@ -291,7 +361,8 @@ func GetFilteredNotifications(db *gorm.DB, username, userId, lastId string) ([]N
 	var notificationsData []NotificationData
 	for _, notification := range notifications {
 		notificationsData = append(notificationsData, NotificationData{
-			Id:             int(notification.Id),
+			Id:             int64(notification.Id),
+			SenderId:       notification.SenderId,
 			Sender:         notification.Sender,
 			Name:           usersData.Name,
 			Type:           notification.Type,
