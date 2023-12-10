@@ -251,18 +251,6 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 	usernames := getSendersFromNotifications(notifications)
 
-	// Update seen attribute of unseen messages in conversation
-	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("notifications").
-			Where("receiver = ? AND seen = 0", username).
-			Update("seen", 1).
-			Error
-	})
-	if err != nil {
-		fmt.Print(err.Error())
-	}
-
 	if err := db.
 		Table("users").
 		Where("username IN ?", usernames).

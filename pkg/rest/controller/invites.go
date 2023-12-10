@@ -94,28 +94,6 @@ func GetFriends(c *fiber.Ctx) error {
 	})
 }
 
-// GetFriendRequests GET /friend-requests
-func GetFriendRequests(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-
-	friendRequests, err := invites.GetFriendRequests(database.DB, username)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(FriendsResponse{
-		Status:  "success",
-		Message: "Friend requests successfully got",
-		Data:    *friendRequests,
-	})
-}
-
 // GetInvites GET /invites
 func GetInvites(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)

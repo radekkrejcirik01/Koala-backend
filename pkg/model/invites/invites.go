@@ -182,31 +182,6 @@ func GetFriends(db *gorm.DB, username string) ([]users.UserData, error) {
 	return usersData, nil
 }
 
-// GetFriendRequests gets friend requests from invites
-func GetFriendRequests(db *gorm.DB, username string) (*[]users.UserData, error) {
-	var invites []Invite
-
-	if err := db.
-		Table("invites").
-		Where("receiver = ? AND accepted = 0", username).
-		Find(&invites).
-		Error; err != nil {
-		return nil, err
-	}
-
-	usernames := GetUsernamesFromInvites(invites, username)
-
-	var usersData []users.UserData
-	if err := db.
-		Table("users").
-		Where("username IN ?", usernames).
-		Find(&usersData).Error; err != nil {
-		return nil, err
-	}
-
-	return &usersData, nil
-}
-
 // GetInvites gets friend invites from invites table
 func GetInvites(db *gorm.DB, username string) ([]InviteData, error) {
 	var invites []Invite
