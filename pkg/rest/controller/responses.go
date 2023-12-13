@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/expressions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
@@ -71,4 +72,11 @@ type EmotionsResponse struct {
 	Status  string                  `json:"status"`
 	Message string                  `json:"message,omitempty"`
 	Data    []emotions.EmotionsData `json:"data,omitempty"`
+}
+
+type ExpressionsResponse struct {
+	Status     string                        `json:"status"`
+	Message    string                        `json:"message,omitempty"`
+	Data       []expressions.ExpressionsData `json:"data,omitempty"`
+	Expression string                        `json:"expression,omitempty"`
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/devices"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/expressions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
@@ -26,6 +27,7 @@ func init() {
 		&devices.Device{},
 		&notifications.Notification{},
 		&emotions.Emotion{},
+		&expressions.Expression{},
 	); err != nil {
 		log.Fatal(err)
 	}

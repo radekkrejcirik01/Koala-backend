@@ -9,6 +9,7 @@ import (
 )
 
 const EmotionNotificationType = "emotion"
+const StatusReplyNotificationType = "status_reply"
 const MessageNotificationType = "message"
 
 type Notification struct {
@@ -35,6 +36,14 @@ type EmotionNotification struct {
 	Receivers    []string
 	Name         string
 	Message      string
+}
+
+type StatusReplyNotification struct {
+	SenderId        int64
+	ReceiverId      int64
+	Name            string
+	Message         string
+	ReplyExpression string
 }
 
 type MessageNotification struct {
@@ -175,6 +184,38 @@ func SendEmotionNotification(db *gorm.DB, t *EmotionNotification, username strin
 	return service.SendNotification(&fcmNotification)
 }
 
+// SendStatusReplyNotification sends status reply message notification
+func SendStatusReplyNotification(db *gorm.DB, t *StatusReplyNotification, username string) error {
+	notification := Notification{
+		SenderId:     t.SenderId,
+		Sender:       username,
+		ReceiverId:   t.ReceiverId,
+		Type:         StatusReplyNotificationType,
+		Message:      t.Message,
+		ReplyMessage: &t.ReplyExpression,
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		return tx.Table("notifications").Create(&notification).Error
+	})
+	if err != nil {
+		return err
+	}
+
+	tokens, err := service.GetTokensByUserId(db, t.ReceiverId)
+	if err != nil {
+		return err
+	}
+
+	fcmNotification := service.FcmNotification{
+		Body:    t.Name + " is replying to your status: " + t.Message,
+		Sound:   "default",
+		Devices: tokens,
+	}
+
+	return service.SendNotification(&fcmNotification)
+}
+
 // SendMessageNotification sends message notification
 func SendMessageNotification(db *gorm.DB, t *MessageNotification, username string) error {
 	notification := Notification{
@@ -228,20 +269,30 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		idCondition = fmt.Sprintf("id < %s AND ", lastId)
 	}
 
+	var receiverId int64
+	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&receiverId).
+		Error; err != nil {
+		return nil, err
+	}
+
 	if err := db.
 		Table("notifications").
-		Where(idCondition+`receiver = ?
+		Where(idCondition+`(receiver = ? OR receiver_id = ?)
 			AND((id IN(
 					SELECT
 						MAX(id)
 						FROM notifications
 					WHERE
-						receiver = ?
+						(receiver = ? OR receiver_id = ?)
 						AND TYPE = 'message'
 					GROUP BY
 						conversation_id))
-				OR TYPE = 'emotion')`,
-			username, username).
+				OR type IN ('emotion', 'status_reply'))`,
+			username, receiverId, username, receiverId).
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
