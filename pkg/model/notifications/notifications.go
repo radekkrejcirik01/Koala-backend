@@ -67,11 +67,17 @@ type NotificationData struct {
 	Seen           int     `json:"seen"`
 	ConversationId *int64  `json:"conversationId,omitempty"`
 	Emotion        *string `json:"emotion,omitempty"`
+	Expression     *string `json:"expression,omitempty"`
 }
 
 type EmotionData struct {
 	Id      int64
 	Message string
+}
+
+type ExpressionData struct {
+	Id           int64
+	ReplyMessage string
 }
 
 type Conversation struct {
@@ -324,6 +330,18 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		}
 	}
 
+	notificationsIds := getNotificationsIds(notifications)
+
+	var expressionsData []ExpressionData
+	if err := db.
+		Table("notifications").
+		Select("id, reply_message").
+		Where("id IN ? AND type = 'status_reply'", notificationsIds).
+		Find(&expressionsData).
+		Error; err != nil {
+		return nil, err
+	}
+
 	var notificationsData []NotificationData
 	for _, notification := range notifications {
 		notificationsData = append(notificationsData, NotificationData{
@@ -337,6 +355,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 			Seen:           notification.Seen,
 			ConversationId: notification.ConversationId,
 			Emotion:        getEmotionMessage(emotionsData, notification.ConversationId),
+			Expression:     getExpression(expressionsData, int64(notification.Id)),
 		})
 	}
 
@@ -449,11 +468,22 @@ func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
 
 // UpdateSeenNotification update unseen notification in notifications table
 func UpdateSeenNotification(db *gorm.DB, username, id string) error {
+	var receiverId int64
+
+	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&receiverId).
+		Error; err != nil {
+		return err
+	}
+
 	return db.Transaction(func(tx *gorm.DB) error {
 		return tx.
 			Table("notifications").
-			Where("receiver = ? AND seen = 0 AND (conversation_id = ? OR id = ?)",
-				username, id, id).
+			Where("(receiver = ? OR receiver_id = ?) AND seen = 0 AND (conversation_id = ? OR id = ?)",
+				username, receiverId, id, id).
 			Update("seen", 1).
 			Error
 	})
@@ -615,6 +645,16 @@ func getEmotionMessage(emotionsData []EmotionData, conversationId *int64) *strin
 	return nil
 }
 
+// getExpression helper function to get expression message by notifications id
+func getExpression(expressionsData []ExpressionData, notificationId int64) *string {
+	for _, v := range expressionsData {
+		if v.Id == notificationId {
+			return &v.ReplyMessage
+		}
+	}
+	return nil
+}
+
 // getConversationsIds helper function to get conversation ids from notifications
 func getConversationsIds(notifications []Notification) []int64 {
 	var ids []int64
@@ -623,6 +663,17 @@ func getConversationsIds(notifications []Notification) []int64 {
 		if v.ConversationId != nil {
 			ids = append(ids, *v.ConversationId)
 		}
+	}
+
+	return ids
+}
+
+// getNotificationsIds helper function to get notifications ids from notifications
+func getNotificationsIds(notifications []Notification) []int64 {
+	var ids []int64
+
+	for _, v := range notifications {
+		ids = append(ids, int64(v.Id))
 	}
 
 	return ids
