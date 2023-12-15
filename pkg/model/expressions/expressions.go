@@ -71,8 +71,19 @@ func PostExpression(db *gorm.DB, t *Expression, username string) error {
 		return err
 	}
 
+	var name string
+	if err := db.
+		Table("users").
+		Select("name").
+		Where("id = ?", t.UserId).
+		Find(&name).
+		Error; err != nil {
+		return nil
+	}
+
 	fcmNotification := service.FcmNotification{
-		Body:    username + " updated status: " + t.Expression,
+		Title:   name + " updated status",
+		Body:    t.Expression,
 		Devices: tokens,
 	}
 

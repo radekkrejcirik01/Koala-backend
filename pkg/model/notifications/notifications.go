@@ -18,7 +18,7 @@ type Notification struct {
 	SenderId       int64
 	Receiver       string `gorm:"size:256"`
 	ReceiverId     int64
-	Type           string
+	Type           string `gorm:"size:20"`
 	Message        string `gorm:"size:512"`
 	Time           int64  `gorm:"autoCreateTime"`
 	Seen           int    `gorm:"default:0"`
@@ -454,10 +454,20 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 // GetUnseenNotifications get unseen notifications from notifications table
 func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
 	var unseenNotifications int64
+	var receiverId int64
+
+	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&receiverId).
+		Error; err != nil {
+		return nil, err
+	}
 
 	if err := db.
 		Table("notifications").
-		Where("receiver = ? AND seen = 0", username).
+		Where("(receiver = ? OR receiver_id = ?) AND seen = 0", username, receiverId).
 		Count(&unseenNotifications).
 		Error; err != nil {
 		return nil, err
