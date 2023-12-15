@@ -544,6 +544,37 @@ func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, err
 	return history, nil
 }
 
+// GetUserHistory get history of sahred emotions to friend from notifications table
+func GetUserHistory(db *gorm.DB, username, receiverId, lastId string) ([]HistoryData, error) {
+	var notifications []Notification
+
+	var idCondition string
+	if lastId != "" {
+		idCondition = fmt.Sprintf("id < %s AND ", lastId)
+	}
+
+	if err := db.
+		Table("notifications").
+		Where(idCondition+"sender = ? AND receiver_id = ? AND type = 'emotion'", username, receiverId).
+		Order("id DESC").
+		Limit(20).
+		Find(&notifications).
+		Error; err != nil {
+		return nil, err
+	}
+
+	var history []HistoryData
+	for _, notification := range notifications {
+		history = append(history, HistoryData{
+			Id:      int(notification.Id),
+			Message: notification.Message,
+			Time:    notification.Time,
+		})
+	}
+
+	return history, nil
+}
+
 // GetTrack gets track of sent notifications from notifications table
 func GetTrack(db *gorm.DB, username string, lastId string) ([]TrackData, error) {
 	var notifications []Notification

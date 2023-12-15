@@ -236,6 +236,32 @@ func GetHistory(c *fiber.Ctx) error {
 	})
 }
 
+// GetUserHistory GET /user-history/:receiverId/:lastId?
+func GetUserHistory(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	receiverId := c.Params("receiverId")
+	lastId := c.Params("lastId")
+
+	history, err := notifications.GetUserHistory(database.DB, username, receiverId, lastId)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(HistoryResponse{
+		Status:  "success",
+		Message: "User history successfully get",
+		Data:    history,
+	})
+}
+
 // GetTrack GET /track
 func GetTrack(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
