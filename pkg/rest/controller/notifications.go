@@ -118,31 +118,6 @@ func GetNotifications(c *fiber.Ctx) error {
 	})
 }
 
-// GetFilteredNotifications GET /filtered-notifications/:userId/:lastId?
-func GetFilteredNotifications(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-	userId := c.Params("userId")
-	lastId := c.Params("lastId")
-
-	n, err := notifications.GetFilteredNotifications(database.DB, username, userId, lastId)
-
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(NotificationsResponse{
-		Status:  "success",
-		Message: "Filtered notifications successfully get",
-		Data:    n,
-	})
-}
-
 // GetConversation GET /conversation/:id
 func GetConversation(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
@@ -258,30 +233,6 @@ func GetUserHistory(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(HistoryResponse{
 		Status:  "success",
 		Message: "User history successfully get",
-		Data:    history,
-	})
-}
-
-// GetTrack GET /track
-func GetTrack(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-	lastId := c.Params("lastId")
-
-	history, err := notifications.GetTrack(database.DB, username, lastId)
-
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(TrackResponse{
-		Status:  "success",
-		Message: "Track successfully get",
 		Data:    history,
 	})
 }

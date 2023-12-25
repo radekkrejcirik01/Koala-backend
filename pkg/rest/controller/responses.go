@@ -62,12 +62,6 @@ type HistoryResponse struct {
 	Data    []notifications.HistoryData `json:"data,omitempty"`
 }
 
-type TrackResponse struct {
-	Status  string                    `json:"status"`
-	Message string                    `json:"message,omitempty"`
-	Data    []notifications.TrackData `json:"data,omitempty"`
-}
-
 type EmotionsResponse struct {
 	Status  string                  `json:"status"`
 	Message string                  `json:"message,omitempty"`

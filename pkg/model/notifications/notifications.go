@@ -362,79 +362,6 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 	return notificationsData, nil
 }
 
-// GetFilteredNotifications get notifications by user id from notifications table
-func GetFilteredNotifications(db *gorm.DB, username, userId, lastId string) ([]NotificationData, error) {
-	var notifications []Notification
-	var usersData users.UserData
-
-	var idCondition string
-	if lastId != "" {
-		idCondition = fmt.Sprintf("id < %s AND ", lastId)
-	}
-
-	if err := db.
-		Table("users").
-		Where("id = ?", userId).
-		Find(&usersData).
-		Error; err != nil {
-		return nil, nil
-	}
-
-	if err := db.
-		Table("notifications").
-		Where(idCondition+`receiver = ? AND sender = ?
-		AND((id IN(
-				SELECT
-					MAX(id)
-					FROM notifications
-				WHERE
-					receiver = ?
-					AND sender = ?
-					AND TYPE = 'message'
-				GROUP BY
-					conversation_id))
-			OR TYPE = 'emotion')`,
-			username, usersData.Username, username, usersData.Username).
-		Order("id DESC").
-		Limit(20).
-		Find(&notifications).
-		Error; err != nil {
-		return nil, err
-	}
-
-	conversationsIds := getConversationsIds(notifications)
-
-	var emotionsData []EmotionData
-	if len(conversationsIds) > 0 {
-		if err := db.
-			Table("notifications").
-			Select("id, message").
-			Where("id IN ?", conversationsIds).
-			Find(&emotionsData).
-			Error; err != nil {
-			return nil, err
-		}
-	}
-
-	var notificationsData []NotificationData
-	for _, notification := range notifications {
-		notificationsData = append(notificationsData, NotificationData{
-			Id:             int64(notification.Id),
-			SenderId:       notification.SenderId,
-			Sender:         notification.Sender,
-			Name:           usersData.Name,
-			Type:           notification.Type,
-			Message:        notification.Message,
-			Time:           notification.Time,
-			Seen:           notification.Seen,
-			ConversationId: notification.ConversationId,
-			Emotion:        getEmotionMessage(emotionsData, notification.ConversationId),
-		})
-	}
-
-	return notificationsData, nil
-}
-
 // GetConversation messages from notifications table
 func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 	var conversation []Conversation
@@ -573,51 +500,6 @@ func GetUserHistory(db *gorm.DB, username, receiverId, lastId string) ([]History
 	}
 
 	return history, nil
-}
-
-// GetTrack gets track of sent notifications from notifications table
-func GetTrack(db *gorm.DB, username string, lastId string) ([]TrackData, error) {
-	var notifications []Notification
-	var usersData []users.UserData
-
-	var idCondition string
-	if lastId != "" {
-		idCondition = fmt.Sprintf("id < %s AND ", lastId)
-	}
-
-	if err := db.
-		Table("notifications").
-		Where(idCondition+"sender = ? AND type = 'emotion'", username).
-		Order("id DESC").
-		Limit(20).
-		Find(&notifications).
-		Error; err != nil {
-		return nil, err
-	}
-
-	n := groupNotifications(notifications)
-
-	usernames := getReceiversFromNotifications(notifications)
-
-	if err := db.
-		Table("users").
-		Where("username IN ?", usernames).
-		Find(&usersData).
-		Error; err != nil {
-		return nil, err
-	}
-
-	var track []TrackData
-	for _, notification := range n {
-		track = append(track, TrackData{
-			Id:             int(notification.Id),
-			ReceiversNames: getNamesFromNotifications(notifications, usersData, notification),
-			Message:        notification.Message,
-			Time:           notification.Time,
-		})
-	}
-
-	return track, nil
 }
 
 // Helper function to get names from notifications
