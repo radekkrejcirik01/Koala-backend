@@ -1,6 +1,8 @@
 package devices
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+)
 
 type Device struct {
 	Id          uint   `gorm:"primary_key;auto_increment;not_null"`
@@ -19,8 +21,8 @@ func SaveDevice(db *gorm.DB, t *Device) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		return tx.
 			Table("devices").
-			Where("username = ? AND device_token = ? AND platform IN ('ios', 'android')",
-				t.Username, t.DeviceToken).
+			Where("username = ? AND device_token = ? AND user_id = ?",
+				t.Username, t.DeviceToken, t.UserId).
 			FirstOrCreate(&t).
 			Error
 	})

@@ -11,6 +11,7 @@ import (
 const EmotionNotificationType = "emotion"
 const StatusReplyNotificationType = "status_reply"
 const MessageNotificationType = "message"
+const AudioMessageNotificationType = "audio"
 
 type Notification struct {
 	Id             uint   `gorm:"primary_key;auto_increment;not_null"`
@@ -24,6 +25,7 @@ type Notification struct {
 	Seen           int    `gorm:"default:0"`
 	ConversationId *int64
 	ReplyMessage   *string `gorm:"size:512"`
+	AudioMessage   *string `gorm:"size:512"`
 }
 
 func (Notification) TableName() string {
@@ -53,7 +55,8 @@ type MessageNotification struct {
 	Name           string
 	Message        string
 	ConversationId int64
-	ReplyMessage   *string
+	ReplyMessage   string
+	AudioMessage   string
 }
 
 type NotificationData struct {
@@ -224,15 +227,25 @@ func SendStatusReplyNotification(db *gorm.DB, t *StatusReplyNotification, userna
 
 // SendMessageNotification sends message notification
 func SendMessageNotification(db *gorm.DB, t *MessageNotification, username string) error {
+	messageType := MessageNotificationType
+
+	if isAudioMessage(t.AudioMessage) {
+		messageType = AudioMessageNotificationType
+
+		// Ensure message is emptied when sending voice message
+		t.Message = ""
+	}
+
 	notification := Notification{
 		SenderId:       t.SenderId,
 		Sender:         username,
 		ReceiverId:     t.ReceiverId,
 		Receiver:       t.Receiver,
-		Type:           MessageNotificationType,
+		Type:           messageType,
 		Message:        t.Message,
 		ConversationId: &t.ConversationId,
-		ReplyMessage:   t.ReplyMessage,
+		ReplyMessage:   &t.ReplyMessage,
+		AudioMessage:   &t.AudioMessage,
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -255,9 +268,14 @@ func SendMessageNotification(db *gorm.DB, t *MessageNotification, username strin
 		}
 	}
 
+	body := t.Message
+	if isAudioMessage(t.AudioMessage) {
+		body = "🎤 Voice message"
+	}
+
 	fcmNotification := service.FcmNotification{
 		Title:   t.Name,
-		Body:    t.Message,
+		Body:    body,
 		Sound:   "default",
 		Devices: tokens,
 	}
@@ -637,4 +655,9 @@ func contains(s []string, e string) bool {
 	}
 
 	return false
+}
+
+// Check if audio message has lenght
+func isAudioMessage(message string) bool {
+	return len(message) > 0
 }

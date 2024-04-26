@@ -5,6 +5,7 @@ import (
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/middleware"
 	e "github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
 	"gorm.io/gorm"
 )
 
@@ -35,7 +36,7 @@ type UserData struct {
 func CreateUser(db *gorm.DB, t *User) error {
 	t.Password = middleware.GetHashPassword(t.Password)
 
-	return db.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		if rows := tx.
 			Table("users").
 			Where("username = ?", t.Username).
@@ -45,6 +46,23 @@ func CreateUser(db *gorm.DB, t *User) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	var tokens []string
+	tokens, err = service.GetTokensByUserId(db, 123)
+	if err != nil {
+		return err
+	}
+
+	fcmNotification := service.FcmNotification{
+		Body:    "New user joined Koala!",
+		Sound:   "default",
+		Devices: tokens,
+	}
+
+	return service.SendNotification(&fcmNotification)
 }
 
 // LoginUser in users table

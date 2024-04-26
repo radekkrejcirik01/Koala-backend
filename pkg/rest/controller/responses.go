@@ -74,3 +74,9 @@ type ExpressionsResponse struct {
 	Data       []expressions.ExpressionsData `json:"data,omitempty"`
 	Expression string                        `json:"expression,omitempty"`
 }
+
+type RecordingResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+	Url     string `json:"url,omitempty"`
+}
