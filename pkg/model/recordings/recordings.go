@@ -13,15 +13,10 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 )
 
-type Recording struct {
-	Buffer   string
-	Platform string
-}
-
-func UploadRecording(t *Recording, username string) (string, error) {
+func UploadRecording(buffer, username string) (string, error) {
 	accessKey, secretAccessKey := database.GetCredentials()
-	fileName := getRecordingFileName(t.Platform)
-	contentType := getContentType(t.Platform)
+
+	fileName := getFileName()
 
 	sess := session.Must(session.NewSession(
 		&aws.Config{
@@ -36,13 +31,13 @@ func UploadRecording(t *Recording, username string) (string, error) {
 	// Create an uploader with the session and default options
 	uploader := s3manager.NewUploader(sess)
 
-	decode, _ := base64.StdEncoding.DecodeString(t.Buffer)
+	decode, _ := base64.StdEncoding.DecodeString(buffer)
 	// Upload the file to S3.
 	result, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket:      aws.String("koala-bucket-records"),
+		Bucket:      aws.String("koala-bucket-voice-messages"),
 		Key:         aws.String("recordings/" + username + "/" + fileName),
 		Body:        bytes.NewReader(decode),
-		ContentType: aws.String(contentType),
+		ContentType: aws.String("audio/mpeg"),
 	})
 	if err != nil {
 		return "", err
@@ -51,27 +46,14 @@ func UploadRecording(t *Recording, username string) (string, error) {
 	return result.Location, nil
 }
 
-func getRecordingFileName(platform string) string {
+func getFileName() string {
+	const extension = ".mp3"
+
 	// Get current timestamp
 	timestamp := time.Now().UnixNano()
 
 	// Convert timestamp to string
-	timestampString := fmt.Sprintf("%d", timestamp)
+	fileName := fmt.Sprintf("%d", timestamp)
 
-	// Get file extension based on platform
-	var extenstion string
-	if platform == "ios" {
-		extenstion = ".m4a"
-	} else {
-		extenstion = ".mp3"
-	}
-
-	return timestampString + extenstion
-}
-
-func getContentType(platform string) string {
-	if platform == "ios" {
-		return "audio/mp4"
-	}
-	return "audio/mpeg"
+	return fileName + extension
 }

@@ -3,6 +3,7 @@ package notifications
 import (
 	"fmt"
 
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/recordings"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
 	"gorm.io/gorm"
@@ -56,7 +57,7 @@ type MessageNotification struct {
 	Message        string
 	ConversationId int64
 	ReplyMessage   string
-	AudioMessage   string
+	AudioBuffer    string
 }
 
 type NotificationData struct {
@@ -90,6 +91,7 @@ type Conversation struct {
 	Message      string `json:"message"`
 	Time         int64  `json:"time"`
 	ReplyMessage string `json:"replyMessage"`
+	AudioMessage string `json:"audioMessage"`
 }
 
 type HistoryData struct {
@@ -228,12 +230,19 @@ func SendStatusReplyNotification(db *gorm.DB, t *StatusReplyNotification, userna
 // SendMessageNotification sends message notification
 func SendMessageNotification(db *gorm.DB, t *MessageNotification, username string) error {
 	messageType := MessageNotificationType
+	var audioMessageUrl string
 
-	if isAudioMessage(t.AudioMessage) {
+	if isAudioMessage(t.AudioBuffer) {
+		var err error
 		messageType = AudioMessageNotificationType
 
 		// Ensure message is emptied when sending voice message
 		t.Message = ""
+
+		audioMessageUrl, err = recordings.UploadRecording(t.AudioBuffer, username)
+		if err != nil {
+			return err
+		}
 	}
 
 	notification := Notification{
@@ -245,7 +254,7 @@ func SendMessageNotification(db *gorm.DB, t *MessageNotification, username strin
 		Message:        t.Message,
 		ConversationId: &t.ConversationId,
 		ReplyMessage:   &t.ReplyMessage,
-		AudioMessage:   &t.AudioMessage,
+		AudioMessage:   &audioMessageUrl,
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -269,7 +278,7 @@ func SendMessageNotification(db *gorm.DB, t *MessageNotification, username strin
 	}
 
 	body := t.Message
-	if isAudioMessage(t.AudioMessage) {
+	if isAudioMessage(audioMessageUrl) {
 		body = "🎤 Voice message"
 	}
 
@@ -386,7 +395,7 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, message, time, reply_message").
+		Select("id, sender, receiver, message, time, reply_message, audio_message").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {
