@@ -239,7 +239,7 @@ func SendMessageNotification(db *gorm.DB, t *MessageNotification, username strin
 		// Ensure message is emptied when sending voice message
 		t.Message = ""
 
-		audioMessageUrl, err = recordings.UploadRecording(t.AudioBuffer, username)
+		audioMessageUrl, err = recordings.UploadRecording(t.AudioBuffer, t.SenderId)
 		if err != nil {
 			return err
 		}
@@ -321,7 +321,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 						FROM notifications
 					WHERE
 						(receiver = ? OR receiver_id = ?)
-						AND TYPE = 'message'
+						AND (TYPE = 'message' OR TYPE = 'audio')
 					GROUP BY
 						conversation_id))
 				OR type IN ('emotion', 'status_reply'))`,

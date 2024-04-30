@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,8 +14,10 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 )
 
-func UploadRecording(buffer, username string) (string, error) {
+func UploadRecording(buffer string, userId int64) (string, error) {
 	accessKey, secretAccessKey := database.GetCredentials()
+
+	id := strconv.Itoa(int(userId))
 
 	fileName := getFileName()
 
@@ -35,7 +38,7 @@ func UploadRecording(buffer, username string) (string, error) {
 	// Upload the file to S3.
 	result, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket:      aws.String("koala-bucket-voice-messages"),
-		Key:         aws.String("recordings/" + username + "/" + fileName),
+		Key:         aws.String("recordings/" + id + "/" + fileName),
 		Body:        bytes.NewReader(decode),
 		ContentType: aws.String("audio/mpeg"),
 	})
