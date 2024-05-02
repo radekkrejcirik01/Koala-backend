@@ -100,3 +100,32 @@ func GetUser(c *fiber.Ctx) error {
 		Emotions: emotions,
 	})
 }
+
+// ChangePassword PUT /user-password
+func ChangePassword(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	t := &users.Password{}
+
+	if err := c.BodyParser(t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	if err := users.ChangePassword(database.DB, username, t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Password successfully changed",
+	})
+}

@@ -32,6 +32,7 @@ func Create() *fiber.App {
 
 	app.Put("/invite", controller.AcceptInvite)
 	app.Put("/notification/:id", controller.UpdateSeenNotification)
+	app.Put("/user-password", controller.ChangePassword)
 
 	app.Delete("/account", controller.DeleteAccount)
 	app.Delete("/device", controller.DeleteDevice)

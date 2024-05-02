@@ -26,6 +26,11 @@ type Login struct {
 	Password string
 }
 
+type Password struct {
+	OldPassword string
+	NewPassword string
+}
+
 type UserData struct {
 	Id       int64  `json:"id,omitempty"`
 	Username string `json:"username"`
@@ -103,4 +108,29 @@ func GetUser(db *gorm.DB, username string) (UserData, []e.EmotionsData, error) {
 	emotionsData := e.GetEmotionsData(emotions)
 
 	return user, emotionsData, nil
+}
+
+// ChangePassword change user password in users table
+func ChangePassword(db *gorm.DB, username string, t *Password) error {
+	oldPassword := middleware.GetHashPassword(t.OldPassword)
+	newPassword := middleware.GetHashPassword(t.NewPassword)
+
+	var user User
+	err := db.
+		Table("users").
+		Where("username = ? AND password = ?", username, oldPassword).
+		First(&user).
+		Error
+
+	if err != nil {
+		return errors.New("incorrect old password")
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("users").
+			Where("id = ?", user.Id).
+			Update("password", newPassword).
+			Error
+	})
 }
