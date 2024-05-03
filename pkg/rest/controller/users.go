@@ -129,3 +129,47 @@ func ChangePassword(c *fiber.Ctx) error {
 		Message: "Password successfully changed",
 	})
 }
+
+// UpdateLastOnline PUT /last-online
+func UpdateLastOnline(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	if err := users.UpdateLastOnline(database.DB, username); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Successfully updated online time",
+	})
+}
+
+// GetLastOnline GET /last-online/:id
+func GetLastOnline(c *fiber.Ctx) error {
+	_, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Params("id")
+
+	time, err := users.GetLastOnline(database.DB, id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(LastOnlineResponse{
+		Status:  "success",
+		Message: "Successfully got last online time",
+		Time:    time,
+	})
+}

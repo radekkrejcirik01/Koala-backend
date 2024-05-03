@@ -19,6 +19,7 @@ func Create() *fiber.App {
 	app.Get("/user-history/:receiverId/:lastId?", controller.GetUserHistory)
 	app.Get("/emotions", controller.GetEmotions)
 	app.Get("/expressions", controller.GetExpressions)
+	app.Get("/last-online/:id", controller.GetLastOnline)
 
 	app.Post("/user", controller.CreateUser)
 	app.Post("/login", controller.LoginUser)
@@ -34,6 +35,7 @@ func Create() *fiber.App {
 	app.Put("/invite", controller.AcceptInvite)
 	app.Put("/notification/:id", controller.UpdateSeenNotification)
 	app.Put("/user-password", controller.ChangePassword)
+	app.Put("/last-online", controller.UpdateLastOnline)
 
 	app.Delete("/account", controller.DeleteAccount)
 	app.Delete("/device", controller.DeleteDevice)

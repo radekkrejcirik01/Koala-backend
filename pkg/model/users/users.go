@@ -2,6 +2,7 @@ package users
 
 import (
 	"errors"
+	"time"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/middleware"
 	e "github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
@@ -15,6 +16,7 @@ type User struct {
 	Name         string `gorm:"size:256"`
 	ProfilePhoto string
 	Password     string
+	LastOnline   int64 `gorm:"autoCreateTime"`
 }
 
 func (User) TableName() string {
@@ -133,4 +135,30 @@ func ChangePassword(db *gorm.DB, username string, t *Password) error {
 			Update("password", newPassword).
 			Error
 	})
+}
+
+// UpdateLastOnline in users table
+func UpdateLastOnline(db *gorm.DB, username string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("users").
+			Where("username = ?", username).
+			Update("last_online", time.Now().Unix()).
+			Error
+	})
+}
+
+// GetLastOnline from users table
+func GetLastOnline(db *gorm.DB, id string) (int64, error) {
+	var time int64
+	err := db.
+		Table("users").
+		Select("last_online").
+		Where("id = ?", id).
+		Find(&time).
+		Error
+	if err != nil {
+		return 0, err
+	}
+	return time, nil
 }
