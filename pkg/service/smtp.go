@@ -21,7 +21,7 @@ func SendPasswordResetEmail(t *ResetPasswordEmail) error {
 
 	body := fmt.Sprintf("Username: %s\nEmail: %s\nFriends: %s\n", t.Username, t.Email, t.Friends)
 
-	msg := []byte("To: " + t.Email + "\r\n" +
+	msg := []byte("To: " + baseEmail + "\r\n" +
 		"Subject: Koala Account Password" + "\r\n" +
 		"\r\n" +
 		body + "\r\n")
