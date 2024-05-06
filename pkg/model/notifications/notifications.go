@@ -84,6 +84,7 @@ type ExpressionData struct {
 
 type Conversation struct {
 	Id           int64  `json:"id"`
+	SenderId     int64  `json:"senderId"`
 	Sender       string `json:"sender"`
 	Receiver     string `json:"receiver"`
 	Message      string `json:"message"`
@@ -364,7 +365,7 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, message, time, reply_message, audio_message").
+		Select("id, sender, receiver, sender_id, message, time, reply_message, audio_message").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {
