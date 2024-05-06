@@ -61,17 +61,15 @@ type MessageNotification struct {
 }
 
 type NotificationData struct {
-	Id             int64   `json:"id"`
-	SenderId       int64   `json:"senderId"`
-	Sender         string  `json:"sender"`
-	Name           string  `json:"name"`
-	Type           string  `json:"type"`
-	Message        string  `json:"message"`
-	Time           int64   `json:"time"`
-	Seen           int     `json:"seen"`
-	ConversationId *int64  `json:"conversationId,omitempty"`
-	Emotion        *string `json:"emotion,omitempty"`
-	Expression     *string `json:"expression,omitempty"`
+	Id             int64  `json:"id"`
+	SenderId       int64  `json:"senderId"`
+	Sender         string `json:"sender"`
+	Name           string `json:"name"`
+	Type           string `json:"type"`
+	Message        string `json:"message"`
+	Time           int64  `json:"time"`
+	Seen           int    `json:"seen"`
+	ConversationId *int64 `json:"conversationId,omitempty"`
 }
 
 type EmotionData struct {
@@ -299,33 +297,32 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 	var idCondition string
 	if lastId != "" {
-		idCondition = fmt.Sprintf("id < %s AND ", lastId)
+		idCondition = fmt.Sprintf(" AND id < %s", lastId)
 	}
 
-	var receiverId int64
+	var userId int64
 	if err := db.
 		Table("users").
 		Select("id").
 		Where("username = ?", username).
-		Find(&receiverId).
+		Find(&userId).
 		Error; err != nil {
 		return nil, err
 	}
 
 	if err := db.
 		Table("notifications").
-		Where(idCondition+`(receiver = ? OR receiver_id = ?)
-			AND((id IN(
+		Where(`receiver_id = ?`+idCondition+` AND((id IN(
 					SELECT
 						MAX(id)
 						FROM notifications
 					WHERE
-						(receiver = ? OR receiver_id = ?)
-						AND (TYPE = 'message' OR TYPE = 'audio')
+						receiver_id = ?
+						AND (type = 'message' OR type = 'audio')
 					GROUP BY
 						conversation_id))
 				OR type IN ('emotion', 'status_reply'))`,
-			username, receiverId, username, receiverId).
+			userId, userId).
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
@@ -333,38 +330,12 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		return nil, err
 	}
 
-	usernames := getSendersFromNotifications(notifications)
+	userIds := getUserIdsFromNotifications(notifications)
 
 	if err := db.
 		Table("users").
-		Where("username IN ?", usernames).
+		Where("id IN ?", userIds).
 		Find(&usersData).
-		Error; err != nil {
-		return nil, err
-	}
-
-	conversationsIds := getConversationsIds(notifications)
-
-	var emotionsData []EmotionData
-	if len(conversationsIds) > 0 {
-		if err := db.
-			Table("notifications").
-			Select("id, message").
-			Where("id IN ?", conversationsIds).
-			Find(&emotionsData).
-			Error; err != nil {
-			return nil, err
-		}
-	}
-
-	notificationsIds := getNotificationsIds(notifications)
-
-	var expressionsData []ExpressionData
-	if err := db.
-		Table("notifications").
-		Select("id, reply_message").
-		Where("id IN ? AND type = 'status_reply'", notificationsIds).
-		Find(&expressionsData).
 		Error; err != nil {
 		return nil, err
 	}
@@ -374,15 +345,13 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		notificationsData = append(notificationsData, NotificationData{
 			Id:             int64(notification.Id),
 			SenderId:       notification.SenderId,
-			Sender:         notification.Sender,
-			Name:           getName(usersData, notification.Sender),
+			Sender:         getUsername(usersData, notification.SenderId),
+			Name:           getName(usersData, notification.SenderId),
 			Type:           notification.Type,
 			Message:        notification.Message,
 			Time:           notification.Time,
 			Seen:           notification.Seen,
 			ConversationId: notification.ConversationId,
-			Emotion:        getEmotionMessage(emotionsData, notification.ConversationId),
-			Expression:     getExpression(expressionsData, int64(notification.Id)),
 		})
 	}
 
@@ -573,9 +542,20 @@ func containsNotification(notifications []Notification, notification Notificatio
 }
 
 // Helper function to get name from users data
-func getName(usersData []users.UserData, username string) string {
+func getUsername(usersData []users.UserData, userId int64) string {
 	for _, user := range usersData {
-		if user.Username == username {
+		if user.Id == userId {
+			return user.Username
+		}
+	}
+
+	return ""
+}
+
+// Helper function to get name from users data
+func getName(usersData []users.UserData, userId int64) string {
+	for _, user := range usersData {
+		if user.Id == userId {
 			return user.Name
 		}
 	}
@@ -583,63 +563,17 @@ func getName(usersData []users.UserData, username string) string {
 	return ""
 }
 
-// getEmotionMessage helper function to get emotion message by conversation id
-func getEmotionMessage(emotionsData []EmotionData, conversationId *int64) *string {
-	if conversationId != nil {
-		for _, v := range emotionsData {
-			if v.Id == *conversationId {
-				return &v.Message
-			}
-		}
-	}
-	return nil
-}
-
-// getExpression helper function to get expression message by notifications id
-func getExpression(expressionsData []ExpressionData, notificationId int64) *string {
-	for _, v := range expressionsData {
-		if v.Id == notificationId {
-			return &v.ReplyMessage
-		}
-	}
-	return nil
-}
-
-// getConversationsIds helper function to get conversation ids from notifications
-func getConversationsIds(notifications []Notification) []int64 {
+// getUsernamesFromNotifications get usernames from notifications array
+func getUserIdsFromNotifications(notifications []Notification) []int64 {
 	var ids []int64
-
-	for _, v := range notifications {
-		if v.ConversationId != nil {
-			ids = append(ids, *v.ConversationId)
-		}
-	}
-
-	return ids
-}
-
-// getNotificationsIds helper function to get notifications ids from notifications
-func getNotificationsIds(notifications []Notification) []int64 {
-	var ids []int64
-
-	for _, v := range notifications {
-		ids = append(ids, int64(v.Id))
-	}
-
-	return ids
-}
-
-// Helper function to get senders from notifications
-func getSendersFromNotifications(notifications []Notification) []string {
-	var senders []string
 
 	for _, notification := range notifications {
-		if !contains(senders, notification.Sender) {
-			senders = append(senders, notification.Sender)
+		if !containsInt(ids, notification.SenderId) {
+			ids = append(ids, notification.SenderId)
 		}
 	}
 
-	return senders
+	return ids
 }
 
 // Helper function to get receivers from notifications
@@ -657,6 +591,17 @@ func getReceiversFromNotifications(notifications []Notification) []string {
 
 // Helper function to check if string array contains value
 func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Helper function to check if string array contains value
+func containsInt(s []int64, e int64) bool {
 	for _, a := range s {
 		if a == e {
 			return true
