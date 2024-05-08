@@ -5,6 +5,7 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/expressions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/replies"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 )
 
@@ -85,4 +86,10 @@ type RecordingResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message,omitempty"`
 	Url     string `json:"url,omitempty"`
+}
+
+type RepliesResponse struct {
+	Status  string              `json:"status"`
+	Message string              `json:"message,omitempty"`
+	Data    []replies.ReplyData `json:"data,omitempty"`
 }

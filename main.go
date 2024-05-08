@@ -13,6 +13,7 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/expressions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/replies"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/rest"
 )
@@ -28,6 +29,7 @@ func init() {
 		&notifications.Notification{},
 		&emotions.Emotion{},
 		&expressions.Expression{},
+		&replies.Reply{},
 	); err != nil {
 		log.Fatal(err)
 	}
