@@ -46,6 +46,7 @@ func Create() *fiber.App {
 	app.Delete("/invite/:id", controller.RemoveInvite)
 	app.Delete("/emotion/:id", controller.RemoveEmotion)
 	app.Delete("/expression", controller.RemoveExpression)
+	app.Delete("/message/:id", controller.DeleteMessage)
 
 	return app
 }

@@ -90,3 +90,24 @@ func SendStatusReplyMessage(c *fiber.Ctx) error {
 		Message: "Status reply message successfully sent",
 	})
 }
+
+func DeleteMessage(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Params("id")
+
+	if err := messages.DeleteMessage(database.DB, username, id); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Successfully deleted message",
+	})
+}

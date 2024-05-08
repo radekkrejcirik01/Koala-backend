@@ -187,6 +187,27 @@ func SendStatusReplyMessage(db *gorm.DB, t *StatusReplyMessage, username string)
 	return service.SendNotification(&fcmNotification)
 }
 
+func DeleteMessage(db *gorm.DB, username, id string) error {
+	var userId int64
+
+	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&userId).
+		Error; err != nil {
+		return err
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("notifications").
+			Where("id = ? AND sender_id = ?", id, userId).
+			Delete(&notifications.Notification{}).
+			Error
+	})
+}
+
 // Check if audio message has length
 func isAudioMessage(message string) bool {
 	return len(message) > 0
