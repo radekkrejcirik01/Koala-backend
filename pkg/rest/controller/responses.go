@@ -21,10 +21,9 @@ type AuthResponse struct {
 }
 
 type UserResponse struct {
-	Status   string                  `json:"status"`
-	Message  string                  `json:"message,omitempty"`
-	Data     users.UserData          `json:"data,omitempty"`
-	Emotions []emotions.EmotionsData `json:"emotions,omitempty"`
+	Status  string         `json:"status"`
+	Message string         `json:"message,omitempty"`
+	Data    users.UserData `json:"data,omitempty"`
 }
 
 type LastOnlineResponse struct {

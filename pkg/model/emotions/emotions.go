@@ -16,12 +16,11 @@ func (Emotion) TableName() string {
 }
 
 type EmotionsData struct {
-	Id       int64  `json:"id"`
-	Emotion  string `json:"emotion"`
-	Message  string `json:"message"`
-	Tip1     string `json:"tip1"`
-	Tip2     string `json:"tip2"`
-	IsCustom bool   `json:"isCustom"`
+	Id      int64  `json:"id"`
+	Emotion string `json:"emotion"`
+	Message string `json:"message"`
+	Tip1    string `json:"tip1,omitempty"`
+	Tip2    string `json:"tip2,omitempty"`
 }
 
 // AddEmotion add new emotion to table
@@ -33,7 +32,7 @@ func AddEmotion(db *gorm.DB, t *Emotion) error {
 
 // GetEmotions get emotions from table
 func GetEmotions(db *gorm.DB, username string) ([]EmotionsData, error) {
-	var emotions []Emotion
+	var emotions []EmotionsData
 
 	if err := db.
 		Table("emotions").
@@ -44,9 +43,7 @@ func GetEmotions(db *gorm.DB, username string) ([]EmotionsData, error) {
 		return nil, err
 	}
 
-	data := GetEmotionsData(emotions)
-
-	return data, nil
+	return emotions, nil
 }
 
 // RemoveEmotion remove emotion from table
@@ -58,20 +55,4 @@ func RemoveEmotion(db *gorm.DB, id string, username string) error {
 			Delete(&Emotion{}).
 			Error
 	})
-}
-
-// GetEmotionsData helper func for constructing emotions response data
-func GetEmotionsData(emotions []Emotion) []EmotionsData {
-	var data []EmotionsData
-	for _, emotion := range emotions {
-		data = append(data, EmotionsData{
-			Id:       int64(emotion.Id),
-			Emotion:  emotion.Emotion,
-			Message:  emotion.Message,
-			Tip1:     emotion.Tip1,
-			Tip2:     emotion.Tip2,
-			IsCustom: true,
-		})
-	}
-	return data
 }

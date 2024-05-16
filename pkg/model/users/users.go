@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/middleware"
-	e "github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"gorm.io/gorm"
 )
 
@@ -67,9 +66,8 @@ func LoginUser(db *gorm.DB, t *Login) error {
 }
 
 // GetUser from users table
-func GetUser(db *gorm.DB, username string) (UserData, []e.EmotionsData, error) {
+func GetUser(db *gorm.DB, username string) (UserData, error) {
 	var user UserData
-	var emotions []e.Emotion
 
 	if err := db.
 		Table("users").
@@ -77,21 +75,10 @@ func GetUser(db *gorm.DB, username string) (UserData, []e.EmotionsData, error) {
 		Where("username = ?", username).
 		Find(&user).
 		Error; err != nil {
-		return UserData{}, nil, err
+		return UserData{}, err
 	}
 
-	if err := db.
-		Table("emotions").
-		Select("id, emotion, message, tip1, tip2").
-		Where("username = ?", username).
-		Find(&emotions).
-		Error; err != nil {
-		return UserData{}, nil, err
-	}
-
-	emotionsData := e.GetEmotionsData(emotions)
-
-	return user, emotionsData, nil
+	return user, nil
 }
 
 // ChangePassword change user password in users table
