@@ -179,7 +179,8 @@ func SendStatusReplyMessage(db *gorm.DB, t *StatusReplyMessage, username string)
 	}
 
 	fcmNotification := service.FcmNotification{
-		Body:    user.Name + " is replying to your status: " + t.Message,
+		Title:   "Status reply",
+		Body:    user.Name + ": " + t.Message,
 		Sound:   "default",
 		Devices: tokens,
 	}
