@@ -1,6 +1,8 @@
 package expressions
 
 import (
+	"time"
+
 	i "github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
@@ -11,6 +13,7 @@ type Expression struct {
 	Id         uint `gorm:"primary_key;auto_increment;not_null"`
 	UserId     int64
 	Expression string
+	Time       int64 `gorm:"autoCreateTime"`
 }
 
 func (Expression) TableName() string {
@@ -22,6 +25,7 @@ type ExpressionsData struct {
 	UserId     int64  `json:"userId"`
 	Expression string `json:"expression"`
 	Name       string `json:"name"`
+	Time       int64  `json:"time"`
 }
 
 // PostExpression new expression to expressions table
@@ -48,7 +52,7 @@ func PostExpression(db *gorm.DB, t *Expression, username string) error {
 		return tx.
 			Table("expressions").
 			Where("user_id = ?", t.UserId).
-			Update("expression", t.Expression).
+			Updates(map[string]interface{}{"expression": t.Expression, "time": time.Now().Unix()}).
 			Error
 	})
 	if err != nil {
@@ -90,7 +94,7 @@ func PostExpression(db *gorm.DB, t *Expression, username string) error {
 	return service.SendNotification(&fcmNotification)
 }
 
-// PostExpression new expression to expressions table
+// GetExpressions gets expressions from expressions table
 func GetExpressions(db *gorm.DB, username string) ([]ExpressionsData, string, error) {
 	var data []ExpressionsData
 	var invites []i.Invite
@@ -107,36 +111,38 @@ func GetExpressions(db *gorm.DB, username string) ([]ExpressionsData, string, er
 	usernames := i.GetUsernamesFromInvites(invites, username)
 	usernames = append(usernames, username)
 
-	var users []users.UserData
+	var friends []users.UserData
 	if err := db.
 		Table("users").
 		Select("id, name, username").
 		Where("username IN ?", usernames).
-		Find(&users).
+		Find(&friends).
 		Error; err != nil {
 		return nil, "", err
 	}
 
-	usersIds := getUserIds(users)
+	usersIds := getUserIds(friends)
 
 	var expressions []Expression
+	twoDaysAgo := time.Now().AddDate(0, 0, -2).Unix()
 	if err := db.
 		Table("expressions").
-		Where("user_id IN ?", usersIds).
+		Where("user_id IN ? AND (time > ? OR time IS NULL)", usersIds, twoDaysAgo).
 		Find(&expressions).
 		Error; err != nil {
 		return nil, "", err
 	}
 
 	for _, v := range expressions {
-		if getUsername(v.UserId, users) == username {
+		if getUsername(v.UserId, friends) == username {
 			userExpression = v.Expression
 		} else {
 			data = append(data, ExpressionsData{
 				Id:         int64(v.Id),
 				UserId:     v.UserId,
-				Name:       getUserName(v.UserId, users),
+				Name:       getUserName(v.UserId, friends),
 				Expression: v.Expression,
+				Time:       v.Time,
 			})
 		}
 	}
