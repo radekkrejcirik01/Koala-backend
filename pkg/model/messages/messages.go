@@ -11,6 +11,7 @@ const EmotionMessageType = "emotion"
 const MessageType = "message"
 const AudioType = "audio"
 const StatusReplyType = "status_reply"
+const CheckOnType = "check_on"
 
 type EmotionMessage struct {
 	Ids     []int64
@@ -29,6 +30,11 @@ type StatusReplyMessage struct {
 	ReceiverId      int64
 	Message         string
 	ReplyExpression string
+}
+
+type CheckOnMessage struct {
+	Ids     []int64
+	Message string
 }
 
 type User struct {
@@ -181,6 +187,51 @@ func SendStatusReplyMessage(db *gorm.DB, t *StatusReplyMessage, username string)
 	fcmNotification := service.FcmNotification{
 		Title:   "Status reply",
 		Body:    user.Name + ": " + t.Message,
+		Sound:   "default",
+		Devices: tokens,
+	}
+
+	return service.SendNotification(&fcmNotification)
+}
+
+func SendCheckOnMessage(db *gorm.DB, t *CheckOnMessage, username string) error {
+	var messages []notifications.Notification
+	var user User
+
+	if err := db.
+		Table("users").
+		Select("id, name").
+		Where("username = ?", username).
+		Find(&user).
+		Error; err != nil {
+		return err
+	}
+
+	for _, id := range t.Ids {
+		messages = append(messages, notifications.Notification{
+			SenderId:   user.Id,
+			ReceiverId: id,
+			Type:       CheckOnType,
+			Message:    t.Message,
+		})
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		return tx.Table("notifications").Create(&messages).Error
+	})
+	if err != nil {
+		return err
+	}
+
+	var tokens []string
+	tokens, err = service.GetTokensByUserIds(db, t.Ids)
+	if err != nil {
+		return err
+	}
+
+	fcmNotification := service.FcmNotification{
+		Title:   user.Name + " is checking on",
+		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,
 	}

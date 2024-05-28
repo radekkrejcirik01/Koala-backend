@@ -322,7 +322,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 						AND (type = 'message' OR type = 'audio')
 					GROUP BY
 						conversation_id))
-				OR type IN ('emotion', 'status_reply'))`,
+				OR type IN ('emotion', 'status_reply', 'check_on'))`,
 			userId, userId).
 		Order("id DESC").
 		Limit(20).
@@ -362,6 +362,16 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 // GetConversation messages from notifications table
 func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 	var conversation []Conversation
+	var userId int64
+
+	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&userId).
+		Error; err != nil {
+		return nil, err
+	}
 
 	if err := db.
 		Table("notifications").
@@ -372,7 +382,31 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 		return nil, err
 	}
 
-	return conversation, nil
+	c := addReceiver(conversation, username, userId)
+
+	return c, nil
+}
+
+func addReceiver(conversation []Conversation, username string, userId int64) []Conversation {
+	var newConversation []Conversation
+
+	for _, c := range conversation {
+		if len(c.Receiver) > 0 && len(c.Sender) > 0 {
+			newConversation = append(newConversation, c)
+			continue
+		}
+
+		if c.SenderId != userId {
+			v := c
+			v.Receiver = username
+
+			newConversation = append(newConversation, v)
+		} else {
+			newConversation = append(newConversation, c)
+		}
+	}
+
+	return newConversation
 }
 
 // GetUnseenNotifications get unseen notifications from notifications table

@@ -32,6 +32,7 @@ func Create() *fiber.App {
 	app.Post("/status-reply-message", controller.SendStatusReplyMessage)
 	app.Post("/message-notification", controller.SendMessageNotification)
 	app.Post("/message", controller.SendMessage)
+	app.Post("/check-on-message", controller.SendCheckOnMessage)
 	app.Post("/emotion", controller.AddEmotion)
 	app.Post("/expression", controller.PostExpression)
 	app.Post("/password-reset", controller.SendPasswordResetEmail)

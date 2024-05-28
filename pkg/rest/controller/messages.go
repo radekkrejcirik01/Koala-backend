@@ -91,6 +91,34 @@ func SendStatusReplyMessage(c *fiber.Ctx) error {
 	})
 }
 
+func SendCheckOnMessage(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	t := &messages.CheckOnMessage{}
+
+	if err := c.BodyParser(t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	if err := messages.SendCheckOnMessage(database.DB, t, username); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Check-on message successfully sent",
+	})
+}
+
 func DeleteMessage(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
 	if err != nil {
