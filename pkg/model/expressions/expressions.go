@@ -127,7 +127,7 @@ func GetExpressions(db *gorm.DB, username string) ([]ExpressionsData, string, er
 	twoDaysAgo := time.Now().AddDate(0, 0, -2).Unix()
 	if err := db.
 		Table("expressions").
-		Where("user_id IN ? AND (time > ? OR time IS NULL)", usersIds, twoDaysAgo).
+		Where("user_id IN ? AND time > ?", usersIds, twoDaysAgo).
 		Find(&expressions).
 		Error; err != nil {
 		return nil, "", err
