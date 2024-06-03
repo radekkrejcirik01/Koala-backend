@@ -118,6 +118,31 @@ func GetNotifications(c *fiber.Ctx) error {
 	})
 }
 
+// GetFriendNotifications GET /friend-notifications/:id/:lastId?
+func GetFriendNotifications(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+	id := c.Params("id")
+	lastId := c.Params("lastId")
+
+	n, err := notifications.GetFriendNotifications(database.DB, username, id, lastId)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(NotificationsResponse{
+		Status:  "success",
+		Message: "Notifications successfully get",
+		Data:    n,
+	})
+}
+
 // GetConversation GET /conversation/:id
 func GetConversation(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)

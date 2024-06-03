@@ -359,6 +359,72 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 	return notificationsData, nil
 }
 
+// GetFriendNotifications gets notifications from notifications table by friend
+func GetFriendNotifications(db *gorm.DB, username string, friendId, lastId string) ([]NotificationData, error) {
+	var notifications []Notification
+	var usersData users.UserData
+
+	var idCondition string
+	if lastId != "" {
+		idCondition = fmt.Sprintf(" AND id < %s", lastId)
+	}
+
+	var userId int64
+	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&userId).
+		Error; err != nil {
+		return nil, err
+	}
+
+	if err := db.
+		Table("notifications").
+		Where(`receiver_id = ?`+idCondition+` AND sender_id = ? AND((id IN(
+					SELECT
+						MAX(id)
+						FROM notifications
+					WHERE
+						receiver_id = ?
+						AND (type = 'message' OR type = 'audio')
+					GROUP BY
+						conversation_id))
+				OR type IN ('emotion', 'status_reply', 'check_on'))`,
+			userId, friendId, userId).
+		Order("id DESC").
+		Limit(20).
+		Find(&notifications).
+		Error; err != nil {
+		return nil, err
+	}
+
+	if err := db.
+		Table("users").
+		Where("id = ?", friendId).
+		Find(&usersData).
+		Error; err != nil {
+		return nil, err
+	}
+
+	var notificationsData []NotificationData
+	for _, notification := range notifications {
+		notificationsData = append(notificationsData, NotificationData{
+			Id:             int64(notification.Id),
+			SenderId:       notification.SenderId,
+			Sender:         usersData.Username,
+			Name:           usersData.Name,
+			Type:           notification.Type,
+			Message:        notification.Message,
+			Time:           notification.Time,
+			Seen:           notification.Seen,
+			ConversationId: notification.ConversationId,
+		})
+	}
+
+	return notificationsData, nil
+}
+
 // GetConversation messages from notifications table
 func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 	var conversation []Conversation
