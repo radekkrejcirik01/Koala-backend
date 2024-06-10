@@ -31,8 +31,9 @@ func AddEmotion(db *gorm.DB, t *Emotion) error {
 }
 
 // GetEmotions get emotions from table
-func GetEmotions(db *gorm.DB, username string) ([]EmotionsData, error) {
+func GetEmotions(db *gorm.DB, username string) ([]EmotionsData, []int, error) {
 	var emotions []EmotionsData
+	var removedEmotionsIds []int
 
 	if err := db.
 		Table("emotions").
@@ -40,10 +41,19 @@ func GetEmotions(db *gorm.DB, username string) ([]EmotionsData, error) {
 		Where("username = ?", username).
 		Find(&emotions).
 		Error; err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return emotions, nil
+	if err := db.
+		Table("removed_emotions").
+		Select("emotion_id").
+		Where("username = ?", username).
+		Find(&removedEmotionsIds).
+		Error; err != nil {
+		return nil, nil, err
+	}
+
+	return emotions, removedEmotionsIds, nil
 }
 
 // RemoveEmotion remove emotion from table

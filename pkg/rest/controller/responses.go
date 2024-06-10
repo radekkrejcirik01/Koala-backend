@@ -72,6 +72,7 @@ type EmotionsResponse struct {
 	Status  string                  `json:"status"`
 	Message string                  `json:"message,omitempty"`
 	Data    []emotions.EmotionsData `json:"data,omitempty"`
+	Removed []int                   `json:"removed,omitempty"`
 }
 
 type ExpressionsResponse struct {

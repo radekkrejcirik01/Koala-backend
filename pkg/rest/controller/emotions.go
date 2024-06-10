@@ -38,6 +38,36 @@ func AddEmotion(c *fiber.Ctx) error {
 	})
 }
 
+func AddRemovedEmotion(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	t := &emotions.RemovedEmotion{}
+
+	if err := c.BodyParser(t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	t.Username = username
+
+	if err := emotions.AddRemovedEmotion(database.DB, t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Removed emotion successfully added",
+	})
+}
+
 // GetEmotions GET /emotions
 func GetEmotions(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
@@ -45,7 +75,7 @@ func GetEmotions(c *fiber.Ctx) error {
 		return err
 	}
 
-	emotions, err := emotions.GetEmotions(database.DB, username)
+	emotions, removedIds, err := emotions.GetEmotions(database.DB, username)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
@@ -58,6 +88,7 @@ func GetEmotions(c *fiber.Ctx) error {
 		Status:  "success",
 		Message: "Emotions successfully got",
 		Data:    emotions,
+		Removed: removedIds,
 	})
 }
 

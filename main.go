@@ -28,6 +28,7 @@ func init() {
 		&devices.Device{},
 		&notifications.Notification{},
 		&emotions.Emotion{},
+		&emotions.RemovedEmotion{},
 		&expressions.Expression{},
 		&replies.Reply{},
 	); err != nil {
