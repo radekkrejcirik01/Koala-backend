@@ -71,6 +71,18 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username string) error {
 		return err
 	}
 
+	for _, message := range messages {
+		err := db.Transaction(func(tx *gorm.DB) error {
+			return tx.Table("notifications").
+				Where("id = ?", message.Id).
+				Update("conversation_id", message.Id).
+				Error
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	var tokens []string
 	tokens, err = service.GetTokensByUserIds(db, t.Ids)
 	if err != nil {
@@ -179,6 +191,16 @@ func SendStatusReplyMessage(db *gorm.DB, t *StatusReplyMessage, username string)
 		return err
 	}
 
+	err = db.Transaction(func(tx *gorm.DB) error {
+		return tx.Table("notifications").
+			Where("id = ?", message.Id).
+			Update("conversation_id", message.Id).
+			Error
+	})
+	if err != nil {
+		return err
+	}
+
 	tokens, err := service.GetTokensByUserId(db, t.ReceiverId)
 	if err != nil {
 		return err
@@ -221,6 +243,18 @@ func SendCheckOnMessage(db *gorm.DB, t *CheckOnMessage, username string) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	for _, message := range messages {
+		err := db.Transaction(func(tx *gorm.DB) error {
+			return tx.Table("notifications").
+				Where("id = ?", message.Id).
+				Update("conversation_id", message.Id).
+				Error
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	var tokens []string
