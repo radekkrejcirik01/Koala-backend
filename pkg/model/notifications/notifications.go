@@ -298,7 +298,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 	var idCondition string
 	if lastId != "" {
-		idCondition = fmt.Sprintf(" AND id < %s", lastId)
+		idCondition = fmt.Sprintf("id < %s AND ", lastId)
 	}
 
 	var userId int64
@@ -313,16 +313,13 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 	if err := db.
 		Table("notifications").
-		Where(`receiver_id = ?`+idCondition+` AND((id IN(
-					SELECT
-						MAX(id)
-						FROM notifications
-					WHERE
-						receiver_id = ?
-						AND (type = 'message' OR type = 'audio')
-					GROUP BY
-						conversation_id))
-				OR type IN ('emotion', 'status_reply', 'check_on'))`,
+		Where(idCondition+`id IN (SELECT
+			MAX(id)
+			FROM notifications
+		WHERE
+			(sender_id = ? AND (type = 'message' OR type = 'audio')) OR receiver_id = ?
+		GROUP BY
+			conversation_id)`,
 			userId, userId).
 		Order("id DESC").
 		Limit(20).
@@ -343,6 +340,11 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 	var notificationsData []NotificationData
 	for _, notification := range notifications {
+		seen := notification.Seen
+		if notification.SenderId == userId {
+			seen = 1
+		}
+
 		notificationsData = append(notificationsData, NotificationData{
 			Id:             int64(notification.Id),
 			SenderId:       notification.SenderId,
@@ -351,7 +353,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 			Type:           notification.Type,
 			Message:        notification.Message,
 			Time:           notification.Time,
-			Seen:           notification.Seen,
+			Seen:           seen,
 			ConversationId: notification.ConversationId,
 		})
 	}
@@ -366,7 +368,7 @@ func GetFriendNotifications(db *gorm.DB, username string, friendId, lastId strin
 
 	var idCondition string
 	if lastId != "" {
-		idCondition = fmt.Sprintf(" AND id < %s", lastId)
+		idCondition = fmt.Sprintf("id < %s AND ", lastId)
 	}
 
 	var userId int64
@@ -381,17 +383,14 @@ func GetFriendNotifications(db *gorm.DB, username string, friendId, lastId strin
 
 	if err := db.
 		Table("notifications").
-		Where(`receiver_id = ?`+idCondition+` AND sender_id = ? AND((id IN(
-					SELECT
-						MAX(id)
-						FROM notifications
-					WHERE
-						receiver_id = ?
-						AND (type = 'message' OR type = 'audio')
-					GROUP BY
-						conversation_id))
-				OR type IN ('emotion', 'status_reply', 'check_on'))`,
-			userId, friendId, userId).
+		Where(idCondition+`id IN (SELECT
+			MAX(id)
+			FROM notifications
+		WHERE
+			((sender_id = ? AND (type = 'message' OR type = 'audio')) OR receiver_id = ?) AND (sender_id = ? OR receiver_id = ?)
+		GROUP BY
+			conversation_id)`,
+			userId, userId, friendId, friendId).
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
@@ -409,6 +408,11 @@ func GetFriendNotifications(db *gorm.DB, username string, friendId, lastId strin
 
 	var notificationsData []NotificationData
 	for _, notification := range notifications {
+		seen := notification.Seen
+		if notification.SenderId == userId {
+			seen = 1
+		}
+
 		notificationsData = append(notificationsData, NotificationData{
 			Id:             int64(notification.Id),
 			SenderId:       notification.SenderId,
@@ -417,7 +421,7 @@ func GetFriendNotifications(db *gorm.DB, username string, friendId, lastId strin
 			Type:           notification.Type,
 			Message:        notification.Message,
 			Time:           notification.Time,
-			Seen:           notification.Seen,
+			Seen:           seen,
 			ConversationId: notification.ConversationId,
 		})
 	}
