@@ -328,7 +328,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		return nil, err
 	}
 
-	userIds := getUserIdsFromNotifications(notifications)
+	userIds := getUserIdsFromNotifications(notifications, userId)
 
 	if err := db.
 		Table("users").
@@ -340,6 +340,8 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 	var notificationsData []NotificationData
 	for _, notification := range notifications {
+		user := getNotificationUser(usersData, notification.SenderId, notification.ReceiverId)
+
 		seen := notification.Seen
 		if notification.SenderId == userId {
 			seen = 1
@@ -347,9 +349,9 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 		notificationsData = append(notificationsData, NotificationData{
 			Id:             int64(notification.Id),
-			SenderId:       notification.SenderId,
-			Sender:         getUsername(usersData, notification.SenderId),
-			Name:           getName(usersData, notification.SenderId),
+			SenderId:       user.Id,
+			Sender:         user.Username,
+			Name:           user.Name,
 			Type:           notification.Type,
 			Message:        notification.Message,
 			Time:           notification.Time,
@@ -415,7 +417,7 @@ func GetFriendNotifications(db *gorm.DB, username string, friendId, lastId strin
 
 		notificationsData = append(notificationsData, NotificationData{
 			Id:             int64(notification.Id),
-			SenderId:       notification.SenderId,
+			SenderId:       usersData.Id,
 			Sender:         usersData.Username,
 			Name:           usersData.Name,
 			Type:           notification.Type,
@@ -646,35 +648,26 @@ func containsNotification(notifications []Notification, notification Notificatio
 	return false
 }
 
-// Helper function to get name from users data
-func getUsername(usersData []users.UserData, userId int64) string {
+func getNotificationUser(usersData []users.UserData, senderId, receiverId int64) users.UserData {
 	for _, user := range usersData {
-		if user.Id == userId {
-			return user.Username
+		if user.Id == senderId || user.Id == receiverId {
+			return user
 		}
 	}
 
-	return ""
-}
-
-// Helper function to get name from users data
-func getName(usersData []users.UserData, userId int64) string {
-	for _, user := range usersData {
-		if user.Id == userId {
-			return user.Name
-		}
-	}
-
-	return ""
+	return users.UserData{}
 }
 
 // getUsernamesFromNotifications get usernames from notifications array
-func getUserIdsFromNotifications(notifications []Notification) []int64 {
+func getUserIdsFromNotifications(notifications []Notification, userId int64) []int64 {
 	var ids []int64
 
 	for _, notification := range notifications {
-		if !containsInt(ids, notification.SenderId) {
+		if !containsInt(ids, notification.SenderId) && notification.SenderId != userId {
 			ids = append(ids, notification.SenderId)
+		}
+		if !containsInt(ids, notification.ReceiverId) && notification.ReceiverId != userId {
+			ids = append(ids, notification.ReceiverId)
 		}
 	}
 
