@@ -88,6 +88,7 @@ type Conversation struct {
 	Sender       string `json:"sender"`
 	Receiver     string `json:"receiver"`
 	Message      string `json:"message"`
+	Type         string `json:"type"`
 	Time         int64  `json:"time"`
 	ReplyMessage string `json:"replyMessage"`
 	AudioMessage string `json:"audioMessage"`
@@ -447,7 +448,7 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, sender_id, message, time, reply_message, audio_message").
+		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {
