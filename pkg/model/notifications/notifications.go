@@ -314,14 +314,14 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 
 	if err := db.
 		Table("notifications").
-		Where(idCondition+`id IN (SELECT
+		Where(`(sender_id = ? OR receiver_id = ?) AND `+idCondition+`id IN (SELECT
 			MAX(id)
 			FROM notifications
 		WHERE
 			(sender_id = ? AND (type = 'message' OR type = 'audio')) OR receiver_id = ?
 		GROUP BY
 			conversation_id)`,
-			userId, userId).
+			userId, userId, userId, userId).
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
@@ -386,14 +386,14 @@ func GetFriendNotifications(db *gorm.DB, username string, friendId, lastId strin
 
 	if err := db.
 		Table("notifications").
-		Where(idCondition+`id IN (SELECT
+		Where(`(sender_id = ? OR receiver_id = ?) AND `+idCondition+`id IN (SELECT
 			MAX(id)
 			FROM notifications
 		WHERE
 			((sender_id = ? AND (type = 'message' OR type = 'audio')) OR receiver_id = ?) AND (sender_id = ? OR receiver_id = ?)
 		GROUP BY
 			conversation_id)`,
-			userId, userId, friendId, friendId).
+			userId, userId, userId, userId, friendId, friendId).
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
