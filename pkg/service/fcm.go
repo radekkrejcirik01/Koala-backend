@@ -1,15 +1,16 @@
 package service
 
 import (
+	"context"
 	"log"
 
-	"github.com/appleboy/go-fcm"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
+	"firebase.google.com/go/v4/messaging"
+	fcm "github.com/appleboy/go-fcm"
 	"gorm.io/gorm"
 )
 
 type FcmNotification struct {
-	Data    map[string]interface{}
+	Data    map[string]string
 	Title   string
 	Body    string
 	Sound   string
@@ -68,35 +69,53 @@ func GetTokensByUserIds(db *gorm.DB, ids []int64) ([]string, error) {
 }
 
 func SendNotification(t *FcmNotification) error {
-	fcmClient := database.GetFcmClient()
-	tokens := t.Devices
+	ctx := context.Background()
 
-	client, err := fcm.NewClient(fcmClient)
+	client, err := fcm.NewClient(ctx, fcm.WithCredentialsFile("./fcm-client.json"))
 	if err != nil {
-		log.Fatalln(err)
-		return err
+		log.Println(err.Error())
 	}
 
-	for _, token := range tokens {
-		msg := &fcm.Message{
-			To:   token,
-			Data: t.Data,
-			Notification: &fcm.Notification{
+	apnsConfig := NewAPNSConfig(t.Sound, 1)
+	androidConfig := NewAndroidConfig(t.Sound)
+
+	for _, token := range t.Devices {
+		msg := messaging.Message{
+			Token: token,
+			Data:  t.Data,
+			Notification: &messaging.Notification{
 				Title: t.Title,
 				Body:  t.Body,
-				Badge: "1",
-				Sound: t.Sound,
 			},
-			Priority: "high",
+			APNS:    apnsConfig,
+			Android: androidConfig,
 		}
 
-		response, err := client.Send(msg)
+		response, err := client.Send(ctx, &msg)
 		if err != nil {
-			log.Fatalln(err)
+			log.Println(err.Error())
 		}
-
 		log.Printf("%#v\n", response)
 	}
 
 	return nil
+}
+
+func NewAPNSConfig(sound string, badge int) *messaging.APNSConfig {
+	return &messaging.APNSConfig{
+		Payload: &messaging.APNSPayload{
+			Aps: &messaging.Aps{
+				Sound: sound,
+				Badge: &badge,
+			},
+		},
+	}
+}
+
+func NewAndroidConfig(sound string) *messaging.AndroidConfig {
+	return &messaging.AndroidConfig{
+		Notification: &messaging.AndroidNotification{
+			Sound: sound,
+		},
+	}
 }

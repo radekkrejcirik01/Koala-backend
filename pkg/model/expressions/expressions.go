@@ -88,6 +88,7 @@ func PostExpression(db *gorm.DB, t *Expression, username string) error {
 	fcmNotification := service.FcmNotification{
 		Title:   name + " updated status",
 		Body:    t.Expression,
+		Sound:   "default",
 		Devices: tokens,
 	}
 

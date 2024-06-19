@@ -1,0 +1,2 @@
+# Ignore the Firebase Cloud Messaging client configuration file
+fcm-client.json

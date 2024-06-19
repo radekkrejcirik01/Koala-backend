@@ -17,7 +17,6 @@ var (
 	dbname          = ""
 	accessKey       = ""
 	secretAccessKey = ""
-	fcmclient       = ""
 	jwtsecret       = ""
 	email           = ""
 	emailpassword   = ""
@@ -35,8 +34,6 @@ func init() {
 
 	accessKey = os.Getenv("ACCESSKEY")
 	secretAccessKey = os.Getenv("SECRETACCESSKEY")
-
-	fcmclient = os.Getenv("FCMCLIENT")
 
 	jwtsecret = os.Getenv("JWTSECRET")
 
@@ -64,10 +61,6 @@ func Connect() {
 
 func GetCredentials() (string, string) {
 	return accessKey, secretAccessKey
-}
-
-func GetFcmClient() string {
-	return fcmclient
 }
 
 func GetJWTSecret() string {
