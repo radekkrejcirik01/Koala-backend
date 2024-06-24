@@ -115,7 +115,8 @@ func NewAPNSConfig(sound string, badge int) *messaging.APNSConfig {
 func NewAndroidConfig(sound string) *messaging.AndroidConfig {
 	return &messaging.AndroidConfig{
 		Notification: &messaging.AndroidNotification{
-			Sound: sound,
+			Priority: messaging.PriorityHigh,
+			Sound:    sound,
 		},
 	}
 }
