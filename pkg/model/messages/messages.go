@@ -8,6 +8,7 @@ import (
 )
 
 const EmotionMessageType = "emotion"
+const DirectEmotionMessageType = "direct_emotion"
 const MessageType = "message"
 const AudioType = "audio"
 const StatusReplyType = "status_reply"
@@ -42,7 +43,7 @@ type User struct {
 	Name string
 }
 
-func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username string) error {
+func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType string) error {
 	var messages []notifications.Notification
 	var user User
 
@@ -55,11 +56,16 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username string) error {
 		return err
 	}
 
+	mType := EmotionMessageType
+	if messageType == "direct" {
+		mType = DirectEmotionMessageType
+	}
+
 	for _, id := range t.Ids {
 		messages = append(messages, notifications.Notification{
 			SenderId:   user.Id,
 			ReceiverId: id,
-			Type:       EmotionMessageType,
+			Type:       mType,
 			Message:    t.Message,
 		})
 	}

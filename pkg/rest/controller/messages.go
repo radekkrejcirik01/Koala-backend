@@ -12,6 +12,7 @@ func SendEmotionMessage(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	messageType := c.Params("type")
 
 	t := &messages.EmotionMessage{}
 
@@ -22,7 +23,7 @@ func SendEmotionMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := messages.SendEmotionMessage(database.DB, t, username); err != nil {
+	if err := messages.SendEmotionMessage(database.DB, t, username, messageType); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
 			Message: err.Error(),
