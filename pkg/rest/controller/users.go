@@ -100,6 +100,36 @@ func GetUser(c *fiber.Ctx) error {
 	})
 }
 
+// CheckUsername POST /username
+func CheckUsername(c *fiber.Ctx) error {
+	t := &users.Username{}
+
+	if err := c.BodyParser(t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	if err := users.CheckUsername(database.DB, t.Username); err != nil {
+		status := fiber.StatusInternalServerError
+
+		if err.Error() == "username is already taken" {
+			status = fiber.StatusOK
+		}
+
+		return c.Status(status).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Username successfully checked",
+	})
+}
+
 // ChangePassword PUT /user-password
 func ChangePassword(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)

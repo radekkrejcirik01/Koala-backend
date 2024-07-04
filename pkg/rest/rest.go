@@ -25,6 +25,7 @@ func Create() *fiber.App {
 
 	app.Post("/user", controller.CreateUser)
 	app.Post("/login", controller.LoginUser)
+	app.Post("/username", controller.CheckUsername)
 	app.Post("/invite", controller.SendInvite)
 	app.Post("/device", controller.SaveDevice)
 	app.Post("/emotion-notification", controller.SendEmotionNotification)

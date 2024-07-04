@@ -37,6 +37,10 @@ type UserData struct {
 	Name     string `json:"name"`
 }
 
+type Username struct {
+	Username string
+}
+
 // CreateUser in users table
 func CreateUser(db *gorm.DB, t *User) error {
 	t.Password = middleware.GetHashPassword(t.Password)
@@ -79,6 +83,25 @@ func GetUser(db *gorm.DB, username string) (UserData, error) {
 	}
 
 	return user, nil
+}
+
+func CheckUsername(db *gorm.DB, username string) error {
+	var user string
+
+	if err := db.
+		Table("users").
+		Select("username").
+		Where("username = ?", username).
+		Find(&user).
+		Error; err != nil {
+		return err
+	}
+
+	if len(user) > 0 {
+		return errors.New("username is already taken")
+	}
+
+	return nil
 }
 
 // ChangePassword change user password in users table
