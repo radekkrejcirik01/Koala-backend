@@ -10,10 +10,21 @@ import (
 
 // DeleteAccount delete user from tables
 func DeleteAccount(db *gorm.DB, username string) error {
+	var userId int64
+
+	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&userId).
+		Error; err != nil {
+		return err
+	}
+
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.
 			Table("users").
-			Where("username = ?", username).
+			Where("id = ?", userId).
 			Delete(&users.User{}).
 			Error; err != nil {
 			return err
@@ -21,7 +32,7 @@ func DeleteAccount(db *gorm.DB, username string) error {
 
 		if err := tx.
 			Table("devices").
-			Where("username = ?", username).
+			Where("user_id = ?", userId).
 			Delete(&devices.Device{}).
 			Error; err != nil {
 			return err
@@ -37,7 +48,8 @@ func DeleteAccount(db *gorm.DB, username string) error {
 
 		if err := tx.
 			Table("notifications").
-			Where("sender = ? OR receiver = ?", username, username).
+			Where("sender = ? OR receiver = ? OR sender_id = ? OR receiver_id = ?",
+				username, username, userId, userId).
 			Delete(&notifications.Notification{}).
 			Error; err != nil {
 			return err
