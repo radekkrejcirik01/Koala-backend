@@ -1,6 +1,7 @@
 package controller
 
 import (
+	checkonmessages "github.com/radekkrejcirik01/Koala-backend/pkg/model/check-on-messages"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/expressions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
@@ -92,4 +93,10 @@ type RepliesResponse struct {
 	Status  string              `json:"status"`
 	Message string              `json:"message,omitempty"`
 	Data    []replies.ReplyData `json:"data,omitempty"`
+}
+
+type CheckOnMessagesResponse struct {
+	Status  string                               `json:"status"`
+	Message string                               `json:"message,omitempty"`
+	Data    []checkonmessages.CheckOnMessageData `json:"data,omitempty"`
 }

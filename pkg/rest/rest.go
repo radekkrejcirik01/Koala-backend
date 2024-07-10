@@ -22,6 +22,7 @@ func Create() *fiber.App {
 	app.Get("/expressions", controller.GetExpressions)
 	app.Get("/last-online/:id", controller.GetLastOnline)
 	app.Get("/replies/:id", controller.GetReplies)
+	app.Get("/check-on-messages/:id", controller.GetCheckOnMessages)
 
 	app.Post("/user", controller.CreateUser)
 	app.Post("/login", controller.LoginUser)
@@ -40,6 +41,7 @@ func Create() *fiber.App {
 	app.Post("/expression", controller.PostExpression)
 	app.Post("/password-reset", controller.SendPasswordResetEmail)
 	app.Post("/reply", controller.AddReply)
+	app.Post("/user-check-on-message", controller.AddCheckOnMessage)
 
 	app.Put("/invite", controller.AcceptInvite)
 	app.Put("/notification/:id", controller.UpdateSeenNotification)
@@ -54,6 +56,7 @@ func Create() *fiber.App {
 	app.Delete("/expression", controller.RemoveExpression)
 	app.Delete("/message/:id", controller.DeleteMessage)
 	app.Delete("/reply/:id", controller.DeleteReply)
+	app.Delete("/check-on-message/:id", controller.DeleteCheckOnMessage)
 
 	return app
 }
