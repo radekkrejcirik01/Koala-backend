@@ -532,6 +532,7 @@ func UpdateSeenNotification(db *gorm.DB, username, id string) error {
 
 // GetHistory get history of sahred emotions from notifications table
 func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, error) {
+	var userId int64
 	var notifications []Notification
 	var usersData []users.UserData
 
@@ -541,8 +542,17 @@ func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, err
 	}
 
 	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&userId).
+		Error; err != nil {
+		return nil, nil
+	}
+
+	if err := db.
 		Table("notifications").
-		Where(idCondition+"sender = ? AND type = 'emotion'", username).
+		Where(idCondition+"sender_id = ? AND type IN ('emotion', 'direct_emotion', 'check_on')", userId).
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
@@ -550,17 +560,17 @@ func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, err
 		return nil, err
 	}
 
-	n := groupNotifications(notifications)
-
-	usernames := getReceiversFromNotifications(notifications)
+	ids := getReceiversIdsFromNotifications(notifications)
 
 	if err := db.
 		Table("users").
-		Where("username IN ?", usernames).
+		Where("id IN ?", ids).
 		Find(&usersData).
 		Error; err != nil {
 		return nil, err
 	}
+
+	n := groupNotifications(notifications)
 
 	var history []HistoryData
 	for _, notification := range n {
@@ -577,6 +587,7 @@ func GetHistory(db *gorm.DB, username string, lastId string) ([]HistoryData, err
 
 // GetUserHistory get history of sahred emotions to friend from notifications table
 func GetUserHistory(db *gorm.DB, username, receiverId, lastId string) ([]HistoryData, error) {
+	var userId int64
 	var notifications []Notification
 
 	var idCondition string
@@ -585,8 +596,17 @@ func GetUserHistory(db *gorm.DB, username, receiverId, lastId string) ([]History
 	}
 
 	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&userId).
+		Error; err != nil {
+		return nil, nil
+	}
+
+	if err := db.
 		Table("notifications").
-		Where(idCondition+"sender = ? AND receiver_id = ? AND type = 'emotion'", username, receiverId).
+		Where(idCondition+"sender_id = ? AND receiver_id = ? AND type IN ('emotion', 'direct_emotion', 'check_on')", userId, receiverId).
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
@@ -608,17 +628,17 @@ func GetUserHistory(db *gorm.DB, username, receiverId, lastId string) ([]History
 
 // Helper function to get names from notifications
 func getNamesFromNotifications(notifications []Notification, users []users.UserData, notification Notification) []string {
-	var receivers []string
+	var receiversIds []int64
 	var names []string
 
 	for _, n := range notifications {
 		if n.Message == notification.Message && n.Time == notification.Time {
-			receivers = append(receivers, n.Receiver)
+			receiversIds = append(receiversIds, n.ReceiverId)
 		}
 	}
 
 	for _, user := range users {
-		if contains(receivers, user.Username) {
+		if containsInt(receiversIds, user.Id) {
 			names = append(names, user.Name)
 		}
 	}
@@ -676,27 +696,16 @@ func getUserIdsFromNotifications(notifications []Notification, userId int64) []i
 }
 
 // Helper function to get receivers from notifications
-func getReceiversFromNotifications(notifications []Notification) []string {
-	var receivers []string
+func getReceiversIdsFromNotifications(notifications []Notification) []int64 {
+	var receiversIds []int64
 
 	for _, notification := range notifications {
-		if !contains(receivers, notification.Receiver) {
-			receivers = append(receivers, notification.Receiver)
+		if !containsInt(receiversIds, notification.ReceiverId) {
+			receiversIds = append(receiversIds, notification.ReceiverId)
 		}
 	}
 
-	return receivers
-}
-
-// Helper function to check if string array contains value
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-
-	return false
+	return receiversIds
 }
 
 // Helper function to check if string array contains value
