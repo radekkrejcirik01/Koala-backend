@@ -96,7 +96,7 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   user.Name + " is sharing",
+		Title:   "💬 " + user.Name,
 		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,
@@ -161,7 +161,7 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   user.Name,
+		Title:   "💬 " + user.Name,
 		Body:    body,
 		Sound:   "default",
 		Devices: tokens,
@@ -213,7 +213,7 @@ func SendStatusReplyMessage(db *gorm.DB, t *StatusReplyMessage, username string)
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   "Status reply",
+		Title:   "Status reply 💬",
 		Body:    user.Name + ": " + t.Message,
 		Sound:   "default",
 		Devices: tokens,
@@ -270,7 +270,7 @@ func SendCheckOnMessage(db *gorm.DB, t *CheckOnMessage, username string) error {
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   user.Name + " is checking on",
+		Title:   "💬 " + user.Name,
 		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,
