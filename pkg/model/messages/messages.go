@@ -27,6 +27,13 @@ type Message struct {
 	AudioBuffer    string
 }
 
+type LastSharedMessage struct {
+	Id      int64  `json:"id"`
+	Message string `json:"message"`
+	Tip1    string `json:"tip1"`
+	Tip2    string `json:"tip2"`
+}
+
 type StatusReplyMessage struct {
 	ReceiverId      int64
 	Message         string
@@ -168,6 +175,48 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 	}
 
 	return service.SendNotification(&fcmNotification)
+}
+
+func GetLastSharedMessage(db *gorm.DB, username string) (LastSharedMessage, error) {
+	var lastSharedMessage LastSharedMessage
+	var userId int64
+	var message string
+
+	if err := db.
+		Table("users").
+		Select("id").
+		Where("username = ?", username).
+		Find(&userId).
+		Error; err != nil {
+		return LastSharedMessage{}, err
+	}
+
+	if err := db.
+		Table("notifications").
+		Select("message").
+		Where("sender_id = ? AND (type = ? OR type = ?)", userId, EmotionMessageType, DirectEmotionMessageType).
+		Order("id DESC").
+		Limit(1).
+		Find(&message).
+		Error; err != nil {
+		return LastSharedMessage{}, err
+	}
+
+	if err := db.
+		Table("emotions").
+		Where("username = ? AND message = ?", username, message).
+		Order("id DESC").
+		Limit(1).
+		Find(&lastSharedMessage).
+		Error; err != nil {
+		return LastSharedMessage{}, err
+	}
+
+	if len(lastSharedMessage.Message) == 0 {
+		lastSharedMessage.Message = message
+	}
+
+	return lastSharedMessage, nil
 }
 
 func SendStatusReplyMessage(db *gorm.DB, t *StatusReplyMessage, username string) error {

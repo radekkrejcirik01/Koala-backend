@@ -5,6 +5,7 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/expressions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/messages"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/replies"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
@@ -99,4 +100,10 @@ type CheckOnMessagesResponse struct {
 	Status  string                               `json:"status"`
 	Message string                               `json:"message,omitempty"`
 	Data    []checkonmessages.CheckOnMessageData `json:"data,omitempty"`
+}
+
+type GetLastSharedMessageResponse struct {
+	Status  string                     `json:"status"`
+	Message string                     `json:"message,omitempty"`
+	Data    messages.LastSharedMessage `json:"data,omitempty"`
 }

@@ -23,6 +23,7 @@ func Create() *fiber.App {
 	app.Get("/last-online/:id", controller.GetLastOnline)
 	app.Get("/replies/:id", controller.GetReplies)
 	app.Get("/check-on-messages/:id", controller.GetCheckOnMessages)
+	app.Get("/last-shared-message", controller.GetLastSharedMessage)
 
 	app.Post("/user", controller.CreateUser)
 	app.Post("/login", controller.LoginUser)

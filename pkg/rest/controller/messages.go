@@ -64,6 +64,28 @@ func SendMessage(c *fiber.Ctx) error {
 	})
 }
 
+func GetLastSharedMessage(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	message, err := messages.GetLastSharedMessage(database.DB, username)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(GetLastSharedMessageResponse{
+		Status:  "success",
+		Message: "Last shared message successfully get",
+		Data:    message,
+	})
+}
+
 func SendStatusReplyMessage(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
 	if err != nil {
