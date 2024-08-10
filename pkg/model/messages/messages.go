@@ -9,6 +9,7 @@ import (
 
 const EmotionMessageType = "emotion"
 const DirectEmotionMessageType = "direct_emotion"
+const KudosEmotionMessageType = "kudos"
 const MessageType = "message"
 const AudioType = "audio"
 const StatusReplyType = "status_reply"
@@ -66,6 +67,9 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 	mType := EmotionMessageType
 	if messageType == "direct" {
 		mType = DirectEmotionMessageType
+	}
+	if messageType == "kudos" {
+		mType = KudosEmotionMessageType
 	}
 
 	for _, id := range t.Ids {
