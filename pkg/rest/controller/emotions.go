@@ -68,6 +68,31 @@ func AddRemovedEmotion(c *fiber.Ctx) error {
 	})
 }
 
+// GetEmotionsMessages GET /emotions-messages/:type
+func GetEmotionsMessages(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	emotionType := c.Params("type")
+
+	emotions, err := emotions.GetEmotionMessages(database.DB, username, emotionType)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(EmotionsMessagesResponse{
+		Status:  "success",
+		Message: "Emotions messages successfully got",
+		Data:    emotions,
+	})
+}
+
 // GetEmotions GET /emotions
 func GetEmotions(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)

@@ -2,13 +2,19 @@ package emotions
 
 import "gorm.io/gorm"
 
+const AnxietyEmotionType = "anxiety"
+const DepressionEmotionType = "depression"
+const WellbeingEmotionType = "wellbeing"
+const KudosEmotionType = "kudos"
+
 type Emotion struct {
 	Id       uint   `gorm:"primary_key;auto_increment;not_null"`
 	Username string `gorm:"size:256"`
 	Emotion  string
-	Message  string
-	Tip1     string
-	Tip2     string
+	Message  string `gorm:"size:256"`
+	Tip1     string `gorm:"size:256"`
+	Tip2     string `gorm:"size:256"`
+	Type     string `gorm:"size:20"`
 }
 
 func (Emotion) TableName() string {
@@ -28,6 +34,20 @@ func AddEmotion(db *gorm.DB, t *Emotion) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		return tx.Table("emotions").Create(&t).Error
 	})
+}
+
+func GetEmotionMessages(db *gorm.DB, username, emotionType string) ([]EmotionsData, error) {
+	var emotionsMessages []EmotionsData
+
+	if err := db.
+		Table("emotions").
+		Where("username = ? AND type = ?", username, emotionType).
+		Find(&emotionsMessages).
+		Error; err != nil {
+		return nil, err
+	}
+
+	return emotionsMessages, nil
 }
 
 // GetEmotions get emotions from table

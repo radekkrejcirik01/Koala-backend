@@ -70,6 +70,12 @@ type HistoryResponse struct {
 	Data    []notifications.HistoryData `json:"data,omitempty"`
 }
 
+type EmotionsMessagesResponse struct {
+	Status  string                  `json:"status"`
+	Message string                  `json:"message,omitempty"`
+	Data    []emotions.EmotionsData `json:"data,omitempty"`
+}
+
 type EmotionsResponse struct {
 	Status  string                  `json:"status"`
 	Message string                  `json:"message,omitempty"`
