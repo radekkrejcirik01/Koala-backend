@@ -186,6 +186,12 @@ func GetLastSharedMessage(db *gorm.DB, username string) (LastSharedMessage, erro
 	var userId int64
 	var message string
 
+	types := []string{
+		EmotionMessageType,
+		KudosEmotionMessageType,
+		DirectEmotionMessageType,
+	}
+
 	if err := db.
 		Table("users").
 		Select("id").
@@ -198,7 +204,7 @@ func GetLastSharedMessage(db *gorm.DB, username string) (LastSharedMessage, erro
 	if err := db.
 		Table("notifications").
 		Select("message").
-		Where("sender_id = ? AND (type = ? OR type = ?)", userId, EmotionMessageType, DirectEmotionMessageType).
+		Where("sender_id = ? AND type IN ?", userId, types).
 		Order("id DESC").
 		Limit(1).
 		Find(&message).
