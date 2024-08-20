@@ -33,6 +33,7 @@ type LastSharedMessage struct {
 	Message string `json:"message"`
 	Tip1    string `json:"tip1"`
 	Tip2    string `json:"tip2"`
+	Type    string `json:"type"`
 }
 
 type StatusReplyMessage struct {

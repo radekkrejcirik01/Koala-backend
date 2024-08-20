@@ -27,6 +27,7 @@ type EmotionsData struct {
 	Message string `json:"message"`
 	Tip1    string `json:"tip1,omitempty"`
 	Tip2    string `json:"tip2,omitempty"`
+	Type    string `json:"type"`
 }
 
 // AddEmotion add new emotion to table
