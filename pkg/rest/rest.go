@@ -46,6 +46,7 @@ func Create() *fiber.App {
 	app.Post("/feedback", controller.SendFeedback)
 	app.Post("/reply", controller.AddReply)
 	app.Post("/user-check-on-message", controller.AddCheckOnMessage)
+	app.Post("/profile-photo", controller.UploadProfilePhoto)
 
 	app.Put("/invite", controller.AcceptInvite)
 	app.Put("/notification/:id", controller.UpdateSeenNotification)

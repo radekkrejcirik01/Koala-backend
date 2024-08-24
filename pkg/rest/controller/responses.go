@@ -113,3 +113,9 @@ type GetLastSharedMessageResponse struct {
 	Message string                     `json:"message,omitempty"`
 	Data    messages.LastSharedMessage `json:"data,omitempty"`
 }
+
+type UploadProfilePhotoResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+	Data    string `json:"data,omitempty"`
+}

@@ -65,6 +65,7 @@ type NotificationData struct {
 	SenderId       int64  `json:"senderId"`
 	Sender         string `json:"sender"`
 	Name           string `json:"name"`
+	ProfilePhoto   string `json:"profilePhoto,omitempty"`
 	Type           string `json:"type"`
 	Message        string `json:"message"`
 	Time           int64  `json:"time"`
@@ -353,6 +354,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 			SenderId:       user.Id,
 			Sender:         user.Username,
 			Name:           user.Name,
+			ProfilePhoto:   user.ProfilePhoto,
 			Type:           notification.Type,
 			Message:        notification.Message,
 			Time:           notification.Time,

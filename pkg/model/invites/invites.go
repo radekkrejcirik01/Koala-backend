@@ -18,8 +18,9 @@ func (Invite) TableName() string {
 }
 
 type InviteData struct {
-	Id       int64  `json:"id,omitempty"`
-	Username string `json:"username"`
+	Id           int64  `json:"id"`
+	Username     string `json:"username"`
+	ProfilePhoto string `json:"profilePhoto,omitempty"`
 }
 
 func SendInvite(db *gorm.DB, t *Invite) (string, error) {
@@ -136,6 +137,10 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 			Error
 	})
 
+	if err != nil {
+		return "", err
+	}
+
 	tokens, err := service.GetTokensByUsername(db, t.Receiver)
 	if err != nil {
 		return "", err
@@ -185,7 +190,8 @@ func GetFriends(db *gorm.DB, username string) ([]users.UserData, error) {
 // GetInvites gets friend invites from invites table
 func GetInvites(db *gorm.DB, username string) ([]InviteData, error) {
 	var invites []Invite
-	var invitesData []InviteData
+	var usernames []string
+	var data []InviteData
 
 	if err := db.
 		Table("invites").
@@ -195,14 +201,19 @@ func GetInvites(db *gorm.DB, username string) ([]InviteData, error) {
 		return nil, err
 	}
 
-	for _, v := range invites {
-		invitesData = append(invitesData, InviteData{
-			Id:       int64(v.Id),
-			Username: getInviteUsername(v, username),
-		})
+	for _, invite := range invites {
+		usernames = append(usernames, invite.Sender)
 	}
 
-	return invitesData, nil
+	if err := db.
+		Table("users").
+		Where("username IN ?", usernames).
+		Find(&data).
+		Error; err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 // RemoveFriend remove invite from invites table
@@ -263,12 +274,4 @@ func getUser(usersArray []users.UserData, username string) users.UserData {
 	}
 
 	return users.UserData{}
-}
-
-// Helper function to getfriend username from invite
-func getInviteUsername(invite Invite, username string) string {
-	if invite.Sender == username {
-		return invite.Receiver
-	}
-	return invite.Sender
 }

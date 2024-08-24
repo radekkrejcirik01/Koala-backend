@@ -32,9 +32,10 @@ type Password struct {
 }
 
 type UserData struct {
-	Id       int64  `json:"id,omitempty"`
-	Username string `json:"username"`
-	Name     string `json:"name"`
+	Id           int64  `json:"id"`
+	Username     string `json:"username"`
+	Name         string `json:"name"`
+	ProfilePhoto string `json:"profilePhoto,omitempty"`
 }
 
 type Username struct {
@@ -75,7 +76,7 @@ func GetUser(db *gorm.DB, username string) (UserData, error) {
 
 	if err := db.
 		Table("users").
-		Select("id, username, name").
+		Select("id, username, name, profile_photo").
 		Where("username = ?", username).
 		Find(&user).
 		Error; err != nil {
