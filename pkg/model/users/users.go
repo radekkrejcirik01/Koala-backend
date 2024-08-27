@@ -26,6 +26,10 @@ type Login struct {
 	Password string
 }
 
+type Name struct {
+	Name string
+}
+
 type Password struct {
 	OldPassword string
 	NewPassword string
@@ -103,6 +107,16 @@ func CheckUsername(db *gorm.DB, username string) error {
 	}
 
 	return nil
+}
+
+func ChangeName(db *gorm.DB, username string, t *Name) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("users").
+			Where("username = ?", username).
+			Update("name", t.Name).
+			Error
+	})
 }
 
 // ChangePassword change user password in users table

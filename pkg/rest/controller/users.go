@@ -130,6 +130,35 @@ func CheckUsername(c *fiber.Ctx) error {
 	})
 }
 
+// ChangeName PUT /user-name
+func ChangeName(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	t := &users.Name{}
+
+	if err := c.BodyParser(t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	if err := users.ChangeName(database.DB, username, t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Name successfully changed",
+	})
+}
+
 // ChangePassword PUT /user-password
 func ChangePassword(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)

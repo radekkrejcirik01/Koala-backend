@@ -50,6 +50,7 @@ func Create() *fiber.App {
 
 	app.Put("/invite", controller.AcceptInvite)
 	app.Put("/notification/:id", controller.UpdateSeenNotification)
+	app.Put("/user-name", controller.ChangeName)
 	app.Put("/user-password", controller.ChangePassword)
 	app.Put("/last-online", controller.UpdateLastOnline)
 
