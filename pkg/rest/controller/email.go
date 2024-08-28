@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
 )
 
@@ -16,8 +17,14 @@ func SendPasswordResetEmail(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := service.SendPasswordResetEmail(t); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+	if err := service.SendPasswordResetEmail(database.DB, t); err != nil {
+		status := fiber.StatusInternalServerError
+
+		if err.Error() == "incorrect" {
+			status = fiber.StatusOK
+		}
+
+		return c.Status(status).JSON(Response{
 			Status:  "error",
 			Message: err.Error(),
 		})

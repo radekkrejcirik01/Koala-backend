@@ -20,6 +20,7 @@ var (
 	jwtsecret       = ""
 	email           = ""
 	emailpassword   = ""
+	resetpassword   = ""
 )
 
 // DB is connected MySQL DB
@@ -39,6 +40,8 @@ func init() {
 
 	email = os.Getenv("EMAIL")
 	emailpassword = os.Getenv("EMAILPASSWORD")
+
+	resetpassword = os.Getenv("RESETPASSWORD")
 }
 
 // Connect to MySQL server
@@ -69,4 +72,8 @@ func GetJWTSecret() string {
 
 func GetEmailCredentials() (string, string) {
 	return email, emailpassword
+}
+
+func GetResetPassword() string {
+	return resetpassword
 }
