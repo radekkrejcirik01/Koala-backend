@@ -48,8 +48,9 @@ type CheckOnMessage struct {
 }
 
 type User struct {
-	Id   int64
-	Name string
+	Id       int64
+	Name     string
+	Username string
 }
 
 func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType string) error {
@@ -58,7 +59,7 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 
 	if err := db.
 		Table("users").
-		Select("id, name").
+		Select("id, name, username").
 		Where("username = ?", username).
 		Find(&user).
 		Error; err != nil {
@@ -108,7 +109,7 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   "💬 " + user.Name,
+		Title:   user.Username,
 		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,
@@ -124,7 +125,7 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 
 	if err := db.
 		Table("users").
-		Select("id, name").
+		Select("id, name, username").
 		Where("username = ?", username).
 		Find(&user).
 		Error; err != nil {
@@ -173,7 +174,7 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   "💬 " + user.Name,
+		Title:   user.Username,
 		Body:    body,
 		Sound:   "default",
 		Devices: tokens,
