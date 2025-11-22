@@ -10,6 +10,7 @@ type Device struct {
 	UserId      int64
 	DeviceToken string
 	Platform    string
+	Version     string
 }
 
 func (Device) TableName() string {
