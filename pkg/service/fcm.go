@@ -22,7 +22,7 @@ func GetTokensByUsername(db *gorm.DB, username string) ([]string, error) {
 	err := db.
 		Table("devices").
 		Select("device_token").
-		Distinct().
+		Distinct("device_token").
 		Where("username = ?", username).
 		Find(&tokens).
 		Error
@@ -35,7 +35,7 @@ func GetTokensByUserId(db *gorm.DB, id int64) ([]string, error) {
 	err := db.
 		Table("devices").
 		Select("device_token").
-		Distinct().
+		Distinct("device_token").
 		Where("user_id = ?", id).
 		Find(&tokens).
 		Error
@@ -48,7 +48,7 @@ func GetTokensByUsernames(db *gorm.DB, usernames []string) ([]string, error) {
 	err := db.
 		Table("devices").
 		Select("device_token").
-		Distinct().
+		Distinct("device_token").
 		Where("username IN ?", usernames).
 		Find(&tokens).Error
 
@@ -60,7 +60,7 @@ func GetTokensByUserIds(db *gorm.DB, ids []int64) ([]string, error) {
 	err := db.
 		Table("devices").
 		Select("device_token").
-		Distinct().
+		Distinct("device_token").
 		Where("user_id IN ?", ids).
 		Find(&tokens).
 		Error

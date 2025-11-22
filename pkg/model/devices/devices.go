@@ -22,8 +22,8 @@ func SaveDevice(db *gorm.DB, t *Device) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		return tx.
 			Table("devices").
-			Where("username = ? AND device_token = ? AND user_id = ?",
-				t.Username, t.DeviceToken, t.UserId).
+			Where("username = ? AND device_token = ? AND user_id = ? AND version = ?",
+				t.Username, t.DeviceToken, t.UserId, t.Version).
 			FirstOrCreate(&t).
 			Error
 	})
