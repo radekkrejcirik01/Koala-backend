@@ -27,6 +27,7 @@ type Notification struct {
 	ConversationId *int64
 	ReplyMessage   *string `gorm:"size:512"`
 	AudioMessage   *string `gorm:"size:512"`
+	Reaction       *string `gorm:"size:10"`
 }
 
 func (Notification) TableName() string {
@@ -93,6 +94,11 @@ type Conversation struct {
 	Time         int64  `json:"time"`
 	ReplyMessage string `json:"replyMessage"`
 	AudioMessage string `json:"audioMessage"`
+	Reaction     string `json:"reaction,omitempty"`
+}
+
+type UpdateReactionRequest struct {
+	Reaction *string
 }
 
 type HistoryData struct {
@@ -450,7 +456,7 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message").
+		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message, reaction").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {
@@ -530,6 +536,52 @@ func UpdateSeenNotification(db *gorm.DB, username, id string) error {
 			Update("seen", 1).
 			Error
 	})
+}
+
+// UpdateNotificationReaction update a notification reaction field in notifications table
+func UpdateNotificationReaction(db *gorm.DB, username, id string, reaction *string) error {
+	var notification Notification
+	if err := db.
+		Table("notifications").
+		Where("id = ?", id).
+		First(&notification).
+		Error; err != nil {
+		return err
+	}
+
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("notifications").
+			Where("id = ?", id).
+			Update("reaction", reaction).
+			Error
+	}); err != nil {
+		return err
+	}
+
+	var tokens []string
+	var err error
+	if notification.SenderId > 0 {
+		tokens, err = service.GetTokensByUserId(db, notification.SenderId)
+	} else {
+		tokens, err = service.GetTokensByUsername(db, notification.Sender)
+	}
+	if err != nil {
+		return err
+	}
+
+	if len(tokens) == 0 {
+		return nil
+	}
+
+	fcmNotification := service.FcmNotification{
+		Title:   username + " reacted",
+		Body:    "Your message received a reaction: " + *reaction,
+		Sound:   "default",
+		Devices: tokens,
+	}
+
+	return service.SendNotification(&fcmNotification)
 }
 
 // GetHistory get history of sahred emotions from notifications table

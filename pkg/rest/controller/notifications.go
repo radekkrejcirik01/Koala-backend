@@ -212,6 +212,43 @@ func UpdateSeenNotification(c *fiber.Ctx) error {
 	})
 }
 
+// UpdateNotificationReaction PUT /notification/:id/reaction
+func UpdateNotificationReaction(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Params("id")
+	t := &notifications.UpdateReactionRequest{}
+
+	if err := c.BodyParser(t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	if t.Reaction == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(Response{
+			Status:  "error",
+			Message: "reaction is required",
+		})
+	}
+
+	if err := notifications.UpdateNotificationReaction(database.DB, username, id, t.Reaction); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Notification reaction successfully updated",
+	})
+}
+
 // GetHistory GET /history/:lastId?
 func GetHistory(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
