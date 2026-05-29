@@ -109,7 +109,7 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   user.Username,
+		Title:   user.Name + " is sharing",
 		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,
@@ -174,7 +174,7 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   user.Username,
+		Title:   user.Name,
 		Body:    body,
 		Sound:   "default",
 		Devices: tokens,

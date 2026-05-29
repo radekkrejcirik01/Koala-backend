@@ -559,6 +559,16 @@ func UpdateNotificationReaction(db *gorm.DB, username, id string, reaction *stri
 		return err
 	}
 
+	var name string
+	if err := db.
+		Table("users").
+		Select("name").
+		Where("username = ?", username).
+		Find(&name).
+		Error; err != nil {
+		return err
+	}
+
 	var tokens []string
 	var err error
 	if notification.SenderId > 0 {
@@ -575,7 +585,7 @@ func UpdateNotificationReaction(db *gorm.DB, username, id string, reaction *stri
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   username + " reacted",
+		Title:   name + " reacted",
 		Body:    "Your message received a reaction: " + *reaction,
 		Sound:   "default",
 		Devices: tokens,
