@@ -12,8 +12,6 @@ const DirectEmotionMessageType = "direct_emotion"
 const KudosEmotionMessageType = "kudos"
 const MessageType = "message"
 const AudioType = "audio"
-const StatusReplyType = "status_reply"
-const CheckOnType = "check_on"
 
 type EmotionMessage struct {
 	Ids     []int64
@@ -26,25 +24,6 @@ type Message struct {
 	Message        string
 	ReplyMessage   string
 	AudioBuffer    string
-}
-
-type LastSharedMessage struct {
-	Id      int64  `json:"id"`
-	Message string `json:"message"`
-	Tip1    string `json:"tip1"`
-	Tip2    string `json:"tip2"`
-	Type    string `json:"type"`
-}
-
-type StatusReplyMessage struct {
-	ReceiverId      int64
-	Message         string
-	ReplyExpression string
-}
-
-type CheckOnMessage struct {
-	Ids     []int64
-	Message string
 }
 
 type User struct {
@@ -176,163 +155,6 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 	fcmNotification := service.FcmNotification{
 		Title:   user.Name,
 		Body:    body,
-		Sound:   "default",
-		Devices: tokens,
-	}
-
-	return service.SendNotification(&fcmNotification)
-}
-
-func GetLastSharedMessage(db *gorm.DB, username string) (LastSharedMessage, error) {
-	var lastSharedMessage LastSharedMessage
-	var userId int64
-	var message string
-
-	types := []string{
-		EmotionMessageType,
-		KudosEmotionMessageType,
-		DirectEmotionMessageType,
-	}
-
-	if err := db.
-		Table("users").
-		Select("id").
-		Where("username = ?", username).
-		Find(&userId).
-		Error; err != nil {
-		return LastSharedMessage{}, err
-	}
-
-	if err := db.
-		Table("notifications").
-		Select("message").
-		Where("sender_id = ? AND type IN ?", userId, types).
-		Order("id DESC").
-		Limit(1).
-		Find(&message).
-		Error; err != nil {
-		return LastSharedMessage{}, err
-	}
-
-	if err := db.
-		Table("emotions").
-		Where("username = ? AND message = ?", username, message).
-		Order("id DESC").
-		Limit(1).
-		Find(&lastSharedMessage).
-		Error; err != nil {
-		return LastSharedMessage{}, err
-	}
-
-	if len(lastSharedMessage.Message) == 0 {
-		lastSharedMessage.Message = message
-	}
-
-	return lastSharedMessage, nil
-}
-
-func SendStatusReplyMessage(db *gorm.DB, t *StatusReplyMessage, username string) error {
-	var user User
-
-	if err := db.
-		Table("users").
-		Select("id, name").
-		Where("username = ?", username).
-		Find(&user).
-		Error; err != nil {
-		return err
-	}
-
-	message := notifications.Notification{
-		SenderId:     user.Id,
-		ReceiverId:   t.ReceiverId,
-		Message:      t.Message,
-		Type:         StatusReplyType,
-		ReplyMessage: &t.ReplyExpression,
-	}
-
-	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("notifications").Create(&message).Error
-	})
-	if err != nil {
-		return err
-	}
-
-	err = db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("notifications").
-			Where("id = ?", message.Id).
-			Update("conversation_id", message.Id).
-			Error
-	})
-	if err != nil {
-		return err
-	}
-
-	tokens, err := service.GetTokensByUserId(db, t.ReceiverId)
-	if err != nil {
-		return err
-	}
-
-	fcmNotification := service.FcmNotification{
-		Title:   "Status reply 💬",
-		Body:    user.Name + ": " + t.Message,
-		Sound:   "default",
-		Devices: tokens,
-	}
-
-	return service.SendNotification(&fcmNotification)
-}
-
-func SendCheckOnMessage(db *gorm.DB, t *CheckOnMessage, username string) error {
-	var messages []notifications.Notification
-	var user User
-
-	if err := db.
-		Table("users").
-		Select("id, name").
-		Where("username = ?", username).
-		Find(&user).
-		Error; err != nil {
-		return err
-	}
-
-	for _, id := range t.Ids {
-		messages = append(messages, notifications.Notification{
-			SenderId:   user.Id,
-			ReceiverId: id,
-			Type:       CheckOnType,
-			Message:    t.Message,
-		})
-	}
-
-	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("notifications").Create(&messages).Error
-	})
-	if err != nil {
-		return err
-	}
-
-	for _, message := range messages {
-		err := db.Transaction(func(tx *gorm.DB) error {
-			return tx.Table("notifications").
-				Where("id = ?", message.Id).
-				Update("conversation_id", message.Id).
-				Error
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	var tokens []string
-	tokens, err = service.GetTokensByUserIds(db, t.Ids)
-	if err != nil {
-		return err
-	}
-
-	fcmNotification := service.FcmNotification{
-		Title:   "💬 " + user.Name,
-		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,
 	}

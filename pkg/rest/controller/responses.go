@@ -1,11 +1,7 @@
 package controller
 
 import (
-	checkonmessages "github.com/radekkrejcirik01/Koala-backend/pkg/model/check-on-messages"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/model/expressions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/model/messages"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/replies"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
@@ -64,32 +60,6 @@ type UnseenNotificationsResponse struct {
 	UnseenNotifications int64  `json:"unseenNotifications,omitempty"`
 }
 
-type HistoryResponse struct {
-	Status  string                      `json:"status"`
-	Message string                      `json:"message,omitempty"`
-	Data    []notifications.HistoryData `json:"data,omitempty"`
-}
-
-type EmotionsMessagesResponse struct {
-	Status  string                  `json:"status"`
-	Message string                  `json:"message,omitempty"`
-	Data    []emotions.EmotionsData `json:"data,omitempty"`
-}
-
-type EmotionsResponse struct {
-	Status  string                  `json:"status"`
-	Message string                  `json:"message,omitempty"`
-	Data    []emotions.EmotionsData `json:"data,omitempty"`
-	Removed []int                   `json:"removed,omitempty"`
-}
-
-type ExpressionsResponse struct {
-	Status     string                        `json:"status"`
-	Message    string                        `json:"message,omitempty"`
-	Data       []expressions.ExpressionsData `json:"data,omitempty"`
-	Expression string                        `json:"expression,omitempty"`
-}
-
 type RecordingResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message,omitempty"`
@@ -100,18 +70,6 @@ type RepliesResponse struct {
 	Status  string              `json:"status"`
 	Message string              `json:"message,omitempty"`
 	Data    []replies.ReplyData `json:"data,omitempty"`
-}
-
-type CheckOnMessagesResponse struct {
-	Status  string                               `json:"status"`
-	Message string                               `json:"message,omitempty"`
-	Data    []checkonmessages.CheckOnMessageData `json:"data,omitempty"`
-}
-
-type GetLastSharedMessageResponse struct {
-	Status  string                     `json:"status"`
-	Message string                     `json:"message,omitempty"`
-	Data    messages.LastSharedMessage `json:"data,omitempty"`
 }
 
 type UploadProfilePhotoResponse struct {

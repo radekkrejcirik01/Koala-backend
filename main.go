@@ -8,10 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	fiberadapter "github.com/awslabs/aws-lambda-go-api-proxy/fiber"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
-	checkonmessages "github.com/radekkrejcirik01/Koala-backend/pkg/model/check-on-messages"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/devices"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/model/expressions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/replies"
@@ -28,11 +25,7 @@ func init() {
 		&invites.Invite{},
 		&devices.Device{},
 		&notifications.Notification{},
-		&emotions.Emotion{},
-		&emotions.RemovedEmotion{},
-		&expressions.Expression{},
 		&replies.Reply{},
-		&checkonmessages.CheckOnMessage{},
 	); err != nil {
 		log.Fatal(err)
 	}

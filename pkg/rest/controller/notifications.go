@@ -7,93 +7,6 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 )
 
-// SendEmotionNotification POST /emotion-notification
-func SendEmotionNotification(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-
-	t := &notifications.EmotionNotification{}
-
-	if err := c.BodyParser(t); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	if err := notifications.SendEmotionNotification(database.DB, t, username); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(Response{
-		Status:  "success",
-		Message: "Emotion notification successfully sent",
-	})
-}
-
-// SendStatusReplyNotification POST /status-reply-notification
-func SendStatusReplyNotification(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-
-	t := &notifications.StatusReplyNotification{}
-
-	if err := c.BodyParser(t); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	if err := notifications.SendStatusReplyNotification(database.DB, t, username); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(Response{
-		Status:  "success",
-		Message: "Status reply notification successfully sent",
-	})
-}
-
-// SendMessageNotification POST /message-notification
-func SendMessageNotification(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-
-	t := &notifications.MessageNotification{}
-
-	if err := c.BodyParser(t); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	if err := notifications.SendMessageNotification(database.DB, t, username); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(Response{
-		Status:  "success",
-		Message: "Message notification successfully sent",
-	})
-}
-
 // GetNotifications GET /notifications/:lastId?
 func GetNotifications(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
@@ -103,31 +16,6 @@ func GetNotifications(c *fiber.Ctx) error {
 	lastId := c.Params("lastId")
 
 	n, err := notifications.GetNotifications(database.DB, username, lastId)
-
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(NotificationsResponse{
-		Status:  "success",
-		Message: "Notifications successfully get",
-		Data:    n,
-	})
-}
-
-// GetFriendNotifications GET /friend-notifications/:id/:lastId?
-func GetFriendNotifications(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-	id := c.Params("id")
-	lastId := c.Params("lastId")
-
-	n, err := notifications.GetFriendNotifications(database.DB, username, id, lastId)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
@@ -246,55 +134,5 @@ func UpdateNotificationReaction(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(Response{
 		Status:  "success",
 		Message: "Notification reaction successfully updated",
-	})
-}
-
-// GetHistory GET /history/:lastId?
-func GetHistory(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-	lastId := c.Params("lastId")
-
-	history, err := notifications.GetHistory(database.DB, username, lastId)
-
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(HistoryResponse{
-		Status:  "success",
-		Message: "History successfully get",
-		Data:    history,
-	})
-}
-
-// GetUserHistory GET /user-history/:receiverId/:lastId?
-func GetUserHistory(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-
-	receiverId := c.Params("receiverId")
-	lastId := c.Params("lastId")
-
-	history, err := notifications.GetUserHistory(database.DB, username, receiverId, lastId)
-
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(HistoryResponse{
-		Status:  "success",
-		Message: "User history successfully get",
-		Data:    history,
 	})
 }
