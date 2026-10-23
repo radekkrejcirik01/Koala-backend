@@ -21,7 +21,8 @@ type Notification struct {
 	ConversationId *int64
 	ReplyMessage   *string `gorm:"size:512"`
 	AudioMessage   *string `gorm:"size:512"`
-	Reaction       *string `gorm:"size:10"`
+	Reaction       *string `gorm:"size:64"`
+	Emotion        *string `gorm:"size:64"`
 }
 
 func (Notification) TableName() string {
@@ -29,16 +30,17 @@ func (Notification) TableName() string {
 }
 
 type NotificationData struct {
-	Id             int64  `json:"id"`
-	SenderId       int64  `json:"senderId"`
-	Sender         string `json:"sender"`
-	Name           string `json:"name"`
-	ProfilePhoto   string `json:"profilePhoto,omitempty"`
-	Type           string `json:"type"`
-	Message        string `json:"message"`
-	Time           int64  `json:"time"`
-	Seen           int    `json:"seen"`
-	ConversationId *int64 `json:"conversationId,omitempty"`
+	Id             int64   `json:"id"`
+	SenderId       int64   `json:"senderId"`
+	Sender         string  `json:"sender"`
+	Name           string  `json:"name"`
+	ProfilePhoto   string  `json:"profilePhoto,omitempty"`
+	Type           string  `json:"type"`
+	Message        string  `json:"message"`
+	Time           int64   `json:"time"`
+	Seen           int     `json:"seen"`
+	ConversationId *int64  `json:"conversationId,omitempty"`
+	Emotion        *string `json:"emotion,omitempty"`
 }
 
 type EmotionData struct {
@@ -62,6 +64,7 @@ type Conversation struct {
 	ReplyMessage string `json:"replyMessage"`
 	AudioMessage string `json:"audioMessage"`
 	Reaction     string `json:"reaction,omitempty"`
+	Emotion      string `json:"emotion,omitempty"`
 }
 
 type UpdateReactionRequest struct {
@@ -142,6 +145,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 			Time:           notification.Time,
 			Seen:           seen,
 			ConversationId: notification.ConversationId,
+			Emotion:        notification.Emotion,
 		})
 	}
 
@@ -164,7 +168,7 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message, reaction").
+		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message, reaction, emotion").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {

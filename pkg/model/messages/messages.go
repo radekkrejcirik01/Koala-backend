@@ -13,43 +13,17 @@ const KudosEmotionMessageType = "kudos"
 const MessageType = "message"
 const AudioType = "audio"
 
-// Emotion types sent by the client to pick a canned emoji for the message.
-// Mirrors the frontend's EmotionType enum.
-const FeelingGoodEmotionType = "feeling_good"
-const FeelingBadEmotionType = "feeling_bad"
-const AngryEmotionType = "angry"
-const TiredEmotionType = "tired"
-const HeadHurtsEmotionType = "head_hurts"
-
-var emotionEmojis = map[string]string{
-	FeelingGoodEmotionType: "😊",
-	FeelingBadEmotionType:  "😔",
-	AngryEmotionType:       "😠",
-	TiredEmotionType:       "😴",
-	HeadHurtsEmotionType:   "🤕",
-}
-
-// emotionNotificationBodies holds the FCM push body text per emotion type;
-// the stored notifications.message stays just the emoji (see emotionEmojis).
-var emotionNotificationBodies = map[string]string{
-	FeelingGoodEmotionType: "I am feeling good! 😊",
-	FeelingBadEmotionType:  "I am not feeling good 😔",
-	AngryEmotionType:       "I am feeling angry 😠",
-	TiredEmotionType:       "I am feeling tired 😴",
-	HeadHurtsEmotionType:   "My head is hurting 🤕",
-}
-
 type EmotionMessage struct {
-	Ids         []int64
-	Message     string
-	EmotionType string
+	Ids     []int64
+	Message string
+	Emotion *string
 }
 
 type Message struct {
 	ConversationId int64
 	ReceiverId     int64
 	Message        string
-	ReplyMessage   string
+	ReplyMessage   *string
 	AudioBuffer    string
 }
 
@@ -80,15 +54,13 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 		mType = KudosEmotionMessageType
 	}
 
-	message := getEmotionMessage(t.EmotionType, t.Message)
-	body := getEmotionNotificationBody(t.EmotionType, t.Message)
-
 	for _, id := range t.Ids {
 		messages = append(messages, notifications.Notification{
 			SenderId:   user.Id,
 			ReceiverId: id,
 			Type:       mType,
-			Message:    message,
+			Message:    t.Message,
+			Emotion:    t.Emotion,
 		})
 	}
 
@@ -119,7 +91,7 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 
 	fcmNotification := service.FcmNotification{
 		Title:   user.Name + " is sharing",
-		Body:    body,
+		Body:    t.Message,
 		Sound:   "default",
 		Devices: tokens,
 	}
@@ -129,7 +101,7 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 
 func SendMessage(db *gorm.DB, t *Message, username string) error {
 	messageType := MessageType
-	var audioMessageUrl string
+	var audioMessage *string
 	var user User
 
 	if err := db.
@@ -142,16 +114,16 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 	}
 
 	if isAudioMessage(t.AudioBuffer) {
-		var err error
 		messageType = AudioType
 
 		// Ensure message is emptied when sending voice message
 		t.Message = ""
 
-		audioMessageUrl, err = recordings.UploadRecording(t.AudioBuffer, user.Id)
+		audioMessageUrl, err := recordings.UploadRecording(t.AudioBuffer, user.Id)
 		if err != nil {
 			return err
 		}
+		audioMessage = &audioMessageUrl
 	}
 
 	message := notifications.Notification{
@@ -160,8 +132,8 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 		Type:           messageType,
 		Message:        t.Message,
 		ConversationId: &t.ConversationId,
-		ReplyMessage:   &t.ReplyMessage,
-		AudioMessage:   &audioMessageUrl,
+		ReplyMessage:   t.ReplyMessage,
+		AudioMessage:   audioMessage,
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -178,7 +150,7 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 	}
 
 	body := t.Message
-	if isAudioMessage(audioMessageUrl) {
+	if audioMessage != nil {
 		body = "🎤 Voice message"
 	}
 
@@ -216,24 +188,4 @@ func DeleteMessage(db *gorm.DB, username, id string) error {
 // Check if audio message has length
 func isAudioMessage(message string) bool {
 	return len(message) > 0
-}
-
-// getEmotionMessage resolves the stored/sent message for an emotion share:
-// a recognized emotionType maps to its emoji, otherwise falls back to the
-// raw message (legacy clients that don't send emotionType).
-func getEmotionMessage(emotionType, message string) string {
-	if emoji, ok := emotionEmojis[emotionType]; ok {
-		return emoji
-	}
-	return message
-}
-
-// getEmotionNotificationBody resolves the FCM push body for an emotion
-// share: a recognized emotionType maps to its descriptive text, otherwise
-// falls back to the raw message (legacy clients that don't send emotionType).
-func getEmotionNotificationBody(emotionType, message string) string {
-	if body, ok := emotionNotificationBodies[emotionType]; ok {
-		return body
-	}
-	return message
 }
