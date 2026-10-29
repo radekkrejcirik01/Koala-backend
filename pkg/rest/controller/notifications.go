@@ -136,3 +136,25 @@ func UpdateNotificationReaction(c *fiber.Ctx) error {
 		Message: "Notification reaction successfully updated",
 	})
 }
+
+// UpdateNotificationSupport PUT /notification-support/:id
+func UpdateNotificationSupport(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Params("id")
+
+	if err := notifications.UpdateNotificationSupport(database.DB, username, id); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Notification support successfully updated",
+	})
+}

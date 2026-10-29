@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
@@ -23,6 +24,7 @@ type Notification struct {
 	AudioMessage   *string `gorm:"size:512"`
 	Reaction       *string `gorm:"size:64"`
 	Emotion        *string `gorm:"size:64"`
+	SupportedAt    *int64
 }
 
 func (Notification) TableName() string {
@@ -41,6 +43,7 @@ type NotificationData struct {
 	Seen           int     `json:"seen"`
 	ConversationId *int64  `json:"conversationId,omitempty"`
 	Emotion        *string `json:"emotion,omitempty"`
+	SupportedAt    *int64  `json:"supportedAt,omitempty"`
 }
 
 type EmotionData struct {
@@ -65,6 +68,7 @@ type Conversation struct {
 	AudioMessage string `json:"audioMessage"`
 	Reaction     string `json:"reaction,omitempty"`
 	Emotion      string `json:"emotion,omitempty"`
+	SupportedAt  *int64 `json:"supportedAt,omitempty"`
 }
 
 type UpdateReactionRequest struct {
@@ -146,6 +150,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 			Seen:           seen,
 			ConversationId: notification.ConversationId,
 			Emotion:        notification.Emotion,
+			SupportedAt:    notification.SupportedAt,
 		})
 	}
 
@@ -168,7 +173,7 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message, reaction, emotion").
+		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message, reaction, emotion, supported_at").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {
@@ -299,6 +304,61 @@ func UpdateNotificationReaction(db *gorm.DB, username, id string, reaction *stri
 	fcmNotification := service.FcmNotification{
 		Title:   name + " reacted",
 		Body:    "Your message received a reaction: " + *reaction,
+		Sound:   "default",
+		Devices: tokens,
+	}
+
+	return service.SendNotification(&fcmNotification)
+}
+
+// UpdateNotificationSupport mark a direct emotion notification as supported by its receiver
+func UpdateNotificationSupport(db *gorm.DB, username, id string) error {
+	var user users.UserData
+	if err := db.
+		Table("users").
+		Select("id, name").
+		Where("username = ?", username).
+		Find(&user).
+		Error; err != nil {
+		return err
+	}
+
+	var notification Notification
+	if err := db.
+		Table("notifications").
+		Where("id = ? AND receiver_id = ? AND type = 'direct_emotion'", id, user.Id).
+		First(&notification).
+		Error; err != nil {
+		return err
+	}
+
+	// Already supported, don't notify the sender again
+	if notification.SupportedAt != nil {
+		return nil
+	}
+
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		return tx.
+			Table("notifications").
+			Where("id = ?", id).
+			Update("supported_at", time.Now().Unix()).
+			Error
+	}); err != nil {
+		return err
+	}
+
+	tokens, err := service.GetTokensByUserId(db, notification.SenderId)
+	if err != nil {
+		return err
+	}
+
+	if len(tokens) == 0 {
+		return nil
+	}
+
+	fcmNotification := service.FcmNotification{
+		Title:   user.Name + " is here for you",
+		Body:    "Supported your message: " + notification.Message,
 		Sound:   "default",
 		Devices: tokens,
 	}
