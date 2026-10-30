@@ -2,7 +2,6 @@ package notifications
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
@@ -24,7 +23,6 @@ type Notification struct {
 	AudioMessage   *string `gorm:"size:512"`
 	Reaction       *string `gorm:"size:64"`
 	Emotion        *string `gorm:"size:64"`
-	SupportedAt    *int64
 }
 
 func (Notification) TableName() string {
@@ -32,18 +30,18 @@ func (Notification) TableName() string {
 }
 
 type NotificationData struct {
-	Id             int64   `json:"id"`
-	SenderId       int64   `json:"senderId"`
-	Sender         string  `json:"sender"`
-	Name           string  `json:"name"`
-	ProfilePhoto   string  `json:"profilePhoto,omitempty"`
-	Type           string  `json:"type"`
-	Message        string  `json:"message"`
-	Time           int64   `json:"time"`
-	Seen           int     `json:"seen"`
-	ConversationId *int64  `json:"conversationId,omitempty"`
-	Emotion        *string `json:"emotion,omitempty"`
-	SupportedAt    *int64  `json:"supportedAt,omitempty"`
+	Id              int64   `json:"id"`
+	SenderId        int64   `json:"senderId"`
+	MessageSenderId int64   `json:"messageSenderId"`
+	Sender          string  `json:"sender"`
+	Name            string  `json:"name"`
+	ProfilePhoto    string  `json:"profilePhoto,omitempty"`
+	Type            string  `json:"type"`
+	Message         string  `json:"message"`
+	Time            int64   `json:"time"`
+	Seen            int     `json:"seen"`
+	ConversationId  *int64  `json:"conversationId,omitempty"`
+	Emotion         *string `json:"emotion,omitempty"`
 }
 
 type EmotionData struct {
@@ -68,7 +66,6 @@ type Conversation struct {
 	AudioMessage string `json:"audioMessage"`
 	Reaction     string `json:"reaction,omitempty"`
 	Emotion      string `json:"emotion,omitempty"`
-	SupportedAt  *int64 `json:"supportedAt,omitempty"`
 }
 
 type UpdateReactionRequest struct {
@@ -108,7 +105,7 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 			MAX(id)
 			FROM notifications
 		WHERE
-			(sender_id = ? AND (type = 'message' OR type = 'audio')) OR receiver_id = ?
+			(sender_id = ? AND (type = 'message' OR type = 'audio' OR type = 'support')) OR receiver_id = ?
 		GROUP BY
 			conversation_id)`,
 			userId, userId, userId, userId).
@@ -139,18 +136,18 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		}
 
 		notificationsData = append(notificationsData, NotificationData{
-			Id:             int64(notification.Id),
-			SenderId:       user.Id,
-			Sender:         user.Username,
-			Name:           user.Name,
-			ProfilePhoto:   user.ProfilePhoto,
-			Type:           notification.Type,
-			Message:        notification.Message,
-			Time:           notification.Time,
-			Seen:           seen,
-			ConversationId: notification.ConversationId,
-			Emotion:        notification.Emotion,
-			SupportedAt:    notification.SupportedAt,
+			Id:              int64(notification.Id),
+			SenderId:        user.Id,
+			MessageSenderId: notification.SenderId,
+			Sender:          user.Username,
+			Name:            user.Name,
+			ProfilePhoto:    user.ProfilePhoto,
+			Type:            notification.Type,
+			Message:         notification.Message,
+			Time:            notification.Time,
+			Seen:            seen,
+			ConversationId:  notification.ConversationId,
+			Emotion:         notification.Emotion,
 		})
 	}
 
@@ -173,7 +170,7 @@ func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message, reaction, emotion, supported_at").
+		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message, reaction, emotion").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {
@@ -311,7 +308,7 @@ func UpdateNotificationReaction(db *gorm.DB, username, id string, reaction *stri
 	return service.SendNotification(&fcmNotification)
 }
 
-// UpdateNotificationSupport mark a direct emotion notification as supported by its receiver
+// UpdateNotificationSupport send a support message to the sender of a direct emotion
 func UpdateNotificationSupport(db *gorm.DB, username, id string) error {
 	var user users.UserData
 	if err := db.
@@ -332,17 +329,17 @@ func UpdateNotificationSupport(db *gorm.DB, username, id string) error {
 		return err
 	}
 
-	// Already supported, don't notify the sender again
-	if notification.SupportedAt != nil {
-		return nil
+	conversationId := int64(notification.Id)
+
+	support := Notification{
+		SenderId:       user.Id,
+		ReceiverId:     notification.SenderId,
+		Type:           "support",
+		ConversationId: &conversationId,
 	}
 
 	if err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("notifications").
-			Where("id = ?", id).
-			Update("supported_at", time.Now().Unix()).
-			Error
+		return tx.Table("notifications").Create(&support).Error
 	}); err != nil {
 		return err
 	}
