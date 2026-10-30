@@ -1,3 +1,4 @@
 # Ignore the Firebase Cloud Messaging client configuration file
-fcm-client.jsonkoala.zip
+fcm-client.json
+koala.zip
 main
