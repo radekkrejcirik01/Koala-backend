@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
@@ -298,9 +299,14 @@ func UpdateNotificationReaction(db *gorm.DB, username, id string, reaction *stri
 		return nil
 	}
 
+	message := notification.Message
+	if notification.AudioMessage != nil {
+		message = "🎤 Voice message"
+	}
+
 	fcmNotification := service.FcmNotification{
-		Title:   name + " reacted",
-		Body:    "Your message received a reaction: " + *reaction,
+		Title:   name,
+		Body:    "Reacted " + *reaction + " to \"" + message + "\"",
 		Sound:   "default",
 		Devices: tokens,
 	}
@@ -353,9 +359,14 @@ func UpdateNotificationSupport(db *gorm.DB, username, id string) error {
 		return nil
 	}
 
+	message := notification.Message
+	if notification.Emotion != nil {
+		message = strings.TrimSpace(message + " " + *notification.Emotion)
+	}
+
 	fcmNotification := service.FcmNotification{
-		Title:   user.Name + " is here for you",
-		Body:    "Supported your message: " + notification.Message,
+		Title:   user.Name,
+		Body:    "Sent support 🫶 to \"" + message + "\"",
 		Sound:   "default",
 		Devices: tokens,
 	}

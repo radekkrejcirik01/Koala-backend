@@ -1,6 +1,8 @@
 package messages
 
 import (
+	"strings"
+
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/recordings"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
@@ -89,9 +91,14 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 		return err
 	}
 
+	body := t.Message
+	if t.Emotion != nil {
+		body = strings.TrimSpace(body + " " + *t.Emotion)
+	}
+
 	fcmNotification := service.FcmNotification{
-		Title:   user.Name + " is sharing",
-		Body:    t.Message,
+		Title:   user.Name + " is feeling",
+		Body:    body,
 		Sound:   "default",
 		Devices: tokens,
 	}

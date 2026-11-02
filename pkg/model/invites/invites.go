@@ -86,14 +86,19 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "", err
 	}
 
+	sender, err := users.GetUser(db, t.Sender)
+	if err != nil {
+		return "", err
+	}
+
 	tokens, err := service.GetTokensByUsername(db, t.Receiver)
 	if err != nil {
 		return "", err
 	}
 
 	fcmNotification := service.FcmNotification{
-		Title:   t.Sender,
-		Body:    t.Sender + " is sending a friend invite",
+		Title:   sender.Name,
+		Body:    "Sent you a friend invite",
 		Sound:   "default",
 		Devices: tokens,
 	}
@@ -141,13 +146,19 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "", err
 	}
 
+	sender, err := users.GetUser(db, t.Sender)
+	if err != nil {
+		return "", err
+	}
+
 	tokens, err := service.GetTokensByUsername(db, t.Receiver)
 	if err != nil {
 		return "", err
 	}
 
 	fcmNotification := service.FcmNotification{
-		Body:    t.Sender + " accepted your friend invite",
+		Title:   sender.Name,
+		Body:    "Accepted your friend invite",
 		Sound:   "default",
 		Devices: tokens,
 	}
