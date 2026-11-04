@@ -11,7 +11,6 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/devices"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/model/replies"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/rest"
 )
@@ -25,7 +24,6 @@ func init() {
 		&invites.Invite{},
 		&devices.Device{},
 		&notifications.Notification{},
-		&replies.Reply{},
 	); err != nil {
 		log.Fatal(err)
 	}

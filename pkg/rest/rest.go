@@ -16,7 +16,6 @@ func Create() *fiber.App {
 	app.Get("/conversation/:id", controller.GetConversation)
 	app.Get("/unseen-notifications", controller.GetUnseenNotifications)
 	app.Get("/last-online/:id", controller.GetLastOnline)
-	app.Get("/replies/:id", controller.GetReplies)
 
 	app.Post("/user", controller.CreateUser)
 	app.Post("/login", controller.LoginUser)
@@ -28,7 +27,6 @@ func Create() *fiber.App {
 	app.Post("/password-reset", controller.SendPasswordResetEmail)
 	app.Post("/support", controller.SendSupport)
 	app.Post("/feedback", controller.SendFeedback)
-	app.Post("/reply", controller.AddReply)
 	app.Post("/profile-photo", controller.UploadProfilePhoto)
 
 	app.Put("/invite", controller.AcceptInvite)
@@ -44,7 +42,6 @@ func Create() *fiber.App {
 	app.Delete("/friend/:id", controller.RemoveFriend)
 	app.Delete("/invite/:id", controller.RemoveInvite)
 	app.Delete("/message/:id", controller.DeleteMessage)
-	app.Delete("/reply/:id", controller.DeleteReply)
 
 	return app
 }
