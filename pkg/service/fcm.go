@@ -43,18 +43,6 @@ func GetTokensByUserId(db *gorm.DB, id int64) ([]string, error) {
 	return tokens, err
 }
 
-func GetTokensByUsernames(db *gorm.DB, usernames []string) ([]string, error) {
-	var tokens []string
-	err := db.
-		Table("devices").
-		Select("device_token").
-		Distinct("device_token").
-		Where("username IN ?", usernames).
-		Find(&tokens).Error
-
-	return tokens, err
-}
-
 func GetTokensByUserIds(db *gorm.DB, ids []int64) ([]string, error) {
 	var tokens []string
 	err := db.

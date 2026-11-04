@@ -59,12 +59,6 @@ type UnseenNotificationsResponse struct {
 	UnseenNotifications int64  `json:"unseenNotifications,omitempty"`
 }
 
-type RecordingResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message,omitempty"`
-	Url     string `json:"url,omitempty"`
-}
-
 type UploadProfilePhotoResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message,omitempty"`

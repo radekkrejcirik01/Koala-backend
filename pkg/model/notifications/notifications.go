@@ -45,16 +45,6 @@ type NotificationData struct {
 	Emotion         *string `json:"emotion,omitempty"`
 }
 
-type EmotionData struct {
-	Id      int64
-	Message string
-}
-
-type ExpressionData struct {
-	Id           int64
-	ReplyMessage string
-}
-
 type Conversation struct {
 	Id           int64  `json:"id"`
 	SenderId     int64  `json:"senderId"`
@@ -71,13 +61,6 @@ type Conversation struct {
 
 type UpdateReactionRequest struct {
 	Reaction *string
-}
-
-type TrackData struct {
-	Id             int      `json:"id"`
-	ReceiversNames []string `json:"receiversNames"`
-	Message        string   `json:"message"`
-	Time           int64    `json:"time"`
 }
 
 // GetNotifications gets notifications from notifications table
