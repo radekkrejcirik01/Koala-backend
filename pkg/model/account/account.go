@@ -48,8 +48,7 @@ func DeleteAccount(db *gorm.DB, username string) error {
 
 		if err := tx.
 			Table("notifications").
-			Where("sender = ? OR receiver = ? OR sender_id = ? OR receiver_id = ?",
-				username, username, userId, userId).
+			Where("sender_id = ? OR receiver_id = ?", userId, userId).
 			Delete(&notifications.Notification{}).
 			Error; err != nil {
 			return err

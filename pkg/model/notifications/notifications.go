@@ -1,7 +1,6 @@
 package notifications
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
@@ -10,10 +9,8 @@ import (
 )
 
 type Notification struct {
-	Id             uint   `gorm:"primary_key;auto_increment;not_null"`
-	Sender         string `gorm:"size:256"`
+	Id             uint `gorm:"primary_key;auto_increment;not_null"`
 	SenderId       int64
-	Receiver       string `gorm:"size:256"`
 	ReceiverId     int64
 	Type           string `gorm:"size:20"`
 	Message        string `gorm:"size:512"`
@@ -48,8 +45,6 @@ type NotificationData struct {
 type Conversation struct {
 	Id           int64  `json:"id"`
 	SenderId     int64  `json:"senderId"`
-	Sender       string `json:"sender"`
-	Receiver     string `json:"receiver"`
 	Message      string `json:"message"`
 	Type         string `json:"type"`
 	Time         int64  `json:"time"`
@@ -68,11 +63,6 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 	var notifications []Notification
 	var usersData []users.UserData
 
-	var idCondition string
-	if lastId != "" {
-		idCondition = fmt.Sprintf("id < %s AND ", lastId)
-	}
-
 	var userId int64
 	if err := db.
 		Table("users").
@@ -83,16 +73,22 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		return nil, err
 	}
 
-	if err := db.
+	query := db.
 		Table("notifications").
-		Where(`(sender_id = ? OR receiver_id = ?) AND `+idCondition+`id IN (SELECT
+		Where(`(sender_id = ? OR receiver_id = ?) AND id IN (SELECT
 			MAX(id)
 			FROM notifications
 		WHERE
 			(sender_id = ? AND (type = 'message' OR type = 'audio' OR type = 'support')) OR receiver_id = ?
 		GROUP BY
 			conversation_id)`,
-			userId, userId, userId, userId).
+			userId, userId, userId, userId)
+
+	if lastId != "" {
+		query = query.Where("id < ?", lastId)
+	}
+
+	if err := query.
 		Order("id DESC").
 		Limit(20).
 		Find(&notifications).
@@ -139,53 +135,19 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 }
 
 // GetConversation messages from notifications table
-func GetConversation(db *gorm.DB, username, id string) ([]Conversation, error) {
+func GetConversation(db *gorm.DB, id string) ([]Conversation, error) {
 	var conversation []Conversation
-	var userId int64
-
-	if err := db.
-		Table("users").
-		Select("id").
-		Where("username = ?", username).
-		Find(&userId).
-		Error; err != nil {
-		return nil, err
-	}
 
 	if err := db.
 		Table("notifications").
-		Select("id, sender, receiver, type, message, time, sender_id, reply_message, audio_message, reaction, emotion").
+		Select("id, type, message, time, sender_id, reply_message, audio_message, reaction, emotion").
 		Where("id = ? OR conversation_id = ?", id, id).
 		Find(&conversation).
 		Error; err != nil {
 		return nil, err
 	}
 
-	c := addReceiver(conversation, username, userId)
-
-	return c, nil
-}
-
-func addReceiver(conversation []Conversation, username string, userId int64) []Conversation {
-	var newConversation []Conversation
-
-	for _, c := range conversation {
-		if len(c.Receiver) > 0 && len(c.Sender) > 0 {
-			newConversation = append(newConversation, c)
-			continue
-		}
-
-		if c.SenderId != userId {
-			v := c
-			v.Receiver = username
-
-			newConversation = append(newConversation, v)
-		} else {
-			newConversation = append(newConversation, c)
-		}
-	}
-
-	return newConversation
+	return conversation, nil
 }
 
 // GetUnseenNotifications get unseen notifications from notifications table
@@ -204,7 +166,7 @@ func GetUnseenNotifications(db *gorm.DB, username string) (*int64, error) {
 
 	if err := db.
 		Table("notifications").
-		Where("(receiver = ? OR receiver_id = ?) AND seen = 0", username, receiverId).
+		Where("receiver_id = ? AND seen = 0", receiverId).
 		Count(&unseenNotifications).
 		Error; err != nil {
 		return nil, err
@@ -229,8 +191,8 @@ func UpdateSeenNotification(db *gorm.DB, username, id string) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		return tx.
 			Table("notifications").
-			Where("(receiver = ? OR receiver_id = ?) AND seen = 0 AND (conversation_id = ? OR id = ?)",
-				username, receiverId, id, id).
+			Where("receiver_id = ? AND seen = 0 AND (conversation_id = ? OR id = ?)",
+				receiverId, id, id).
 			Update("seen", 1).
 			Error
 	})
@@ -267,13 +229,7 @@ func UpdateNotificationReaction(db *gorm.DB, username, id string, reaction *stri
 		return err
 	}
 
-	var tokens []string
-	var err error
-	if notification.SenderId > 0 {
-		tokens, err = service.GetTokensByUserId(db, notification.SenderId)
-	} else {
-		tokens, err = service.GetTokensByUsername(db, notification.Sender)
-	}
+	tokens, err := service.GetTokensByUserId(db, notification.SenderId)
 	if err != nil {
 		return err
 	}
