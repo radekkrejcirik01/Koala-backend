@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
@@ -57,6 +58,12 @@ type UnseenNotificationsResponse struct {
 	Status              string `json:"status"`
 	Message             string `json:"message,omitempty"`
 	UnseenNotifications int64  `json:"unseenNotifications,omitempty"`
+}
+
+type EmotionsResponse struct {
+	Status  string                 `json:"status"`
+	Message string                 `json:"message,omitempty"`
+	Data    []emotions.EmotionData `json:"data,omitempty"`
 }
 
 type UploadProfilePhotoResponse struct {

@@ -21,6 +21,7 @@ type Notification struct {
 	AudioMessage   *string `gorm:"size:512"`
 	Reaction       *string `gorm:"size:64"`
 	Emotion        *string `gorm:"size:64"`
+	EmotionId      *int64
 }
 
 func (Notification) TableName() string {

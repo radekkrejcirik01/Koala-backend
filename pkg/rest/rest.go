@@ -16,6 +16,7 @@ func Create() *fiber.App {
 	app.Get("/conversation/:id", controller.GetConversation)
 	app.Get("/unseen-notifications", controller.GetUnseenNotifications)
 	app.Get("/last-online/:id", controller.GetLastOnline)
+	app.Get("/emotions", controller.GetEmotions)
 
 	app.Post("/user", controller.CreateUser)
 	app.Post("/login", controller.LoginUser)
