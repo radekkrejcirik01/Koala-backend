@@ -211,12 +211,23 @@ func RemoveFriend(db *gorm.DB, id string, username string) error {
 	})
 }
 
-// RemoveInvite remove invite form invites table
+// RemoveInvite remove invite form invites table, id is the sender's user id
 func RemoveInvite(db *gorm.DB, id string, username string) error {
+	var sender string
+
+	if err := db.
+		Table("users").
+		Select("username").
+		Where("id = ?", id).
+		Find(&sender).
+		Error; err != nil {
+		return err
+	}
+
 	return db.Transaction(func(tx *gorm.DB) error {
 		return tx.
 			Table("invites").
-			Where("id = ? AND receiver = ?", id, username).
+			Where("sender = ? AND receiver = ? AND accepted = 0", sender, username).
 			Delete(&Invite{}).
 			Error
 	})
