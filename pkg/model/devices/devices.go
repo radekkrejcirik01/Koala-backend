@@ -7,7 +7,7 @@ import (
 type Device struct {
 	Id          uint   `gorm:"primary_key;auto_increment;not_null"`
 	Username    string `gorm:"size:256"`
-	UserId      int64
+	UserId      int64  `gorm:"index"`
 	DeviceToken string
 	Platform    string
 	Version     string

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/chats"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
@@ -64,6 +65,30 @@ type EmotionsResponse struct {
 	Status  string                 `json:"status"`
 	Message string                 `json:"message,omitempty"`
 	Data    []emotions.EmotionData `json:"data,omitempty"`
+}
+
+type ChatsResponse struct {
+	Status  string           `json:"status"`
+	Message string           `json:"message,omitempty"`
+	Data    []chats.ChatData `json:"data,omitempty"`
+}
+
+type UnreadChatsResponse struct {
+	Status      string `json:"status"`
+	Message     string `json:"message,omitempty"`
+	UnreadChats int64  `json:"unreadChats"`
+}
+
+type ChatMessagesResponse struct {
+	Status  string              `json:"status"`
+	Message string              `json:"message,omitempty"`
+	Data    []chats.MessageData `json:"data,omitempty"`
+}
+
+type ChatMessageResponse struct {
+	Status  string            `json:"status"`
+	Message string            `json:"message,omitempty"`
+	Data    chats.MessageData `json:"data"`
 }
 
 type UploadProfilePhotoResponse struct {

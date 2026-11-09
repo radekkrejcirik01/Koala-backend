@@ -44,5 +44,15 @@ func Create() *fiber.App {
 	app.Delete("/invite/:id", controller.RemoveInvite)
 	app.Delete("/message/:id", controller.DeleteMessage)
 
+	app.Get("/chats", controller.GetChats)
+	app.Get("/chats/unread", controller.GetUnreadChats)
+	app.Get("/chats/:friendId/messages", controller.GetChatMessages)
+	app.Post("/chats/emotion", controller.SendChatEmotion)
+	app.Post("/chats/:friendId/messages", controller.SendChatMessage)
+	app.Post("/chats/messages/:id/support", controller.SendChatSupport)
+	app.Put("/chats/:friendId/read", controller.ReadChat)
+	app.Put("/chats/messages/:id/reaction", controller.UpdateChatReaction)
+	app.Delete("/chats/messages/:id", controller.DeleteChatMessage)
+
 	return app
 }

@@ -10,7 +10,7 @@ import (
 
 type User struct {
 	Id           uint   `gorm:"primary_key;auto_increment;not_null" json:"id"`
-	Username     string `gorm:"size:256"`
+	Username     string `gorm:"size:256;index"`
 	Name         string `gorm:"size:256"`
 	ProfilePhoto string
 	Password     string
