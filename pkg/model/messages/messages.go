@@ -3,7 +3,6 @@ package messages
 import (
 	"strings"
 
-	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/recordings"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
@@ -58,20 +57,6 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		var emotionId *int64
-		if mType == DirectEmotionMessageType {
-			emotion := emotions.Emotion{
-				UserId:  user.Id,
-				Emotion: t.Emotion,
-				Message: t.Message,
-			}
-			if err := tx.Table("emotions").Create(&emotion).Error; err != nil {
-				return err
-			}
-			id := int64(emotion.Id)
-			emotionId = &id
-		}
-
 		for _, id := range t.Ids {
 			messages = append(messages, notifications.Notification{
 				SenderId:   user.Id,
@@ -79,7 +64,6 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 				Type:       mType,
 				Message:    t.Message,
 				Emotion:    t.Emotion,
-				EmotionId:  emotionId,
 			})
 		}
 

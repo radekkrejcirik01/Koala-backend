@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
@@ -13,18 +14,24 @@ import (
 
 const MessageType = "message"
 const EmotionType = "emotion"
-const SupportType = "support"
+
+const MessageActivity = "message"
+const ReactionActivity = "reaction"
 
 const pageLimit = 20
 
 type Chat struct {
-	Id             uint  `gorm:"primary_key;auto_increment;not_null"`
-	UserLowId      int64 `gorm:"uniqueIndex:idx_chats_users"`
-	UserHighId     int64 `gorm:"uniqueIndex:idx_chats_users;index"`
-	LastMessageId  int64 `gorm:"default:0"`
-	LowLastReadId  int64 `gorm:"default:0"`
-	HighLastReadId int64 `gorm:"default:0"`
-	CreatedAt      int64 `gorm:"autoCreateTime"`
+	Id                    uint   `gorm:"primary_key;auto_increment;not_null"`
+	UserLowId             int64  `gorm:"uniqueIndex:idx_chats_users"`
+	UserHighId            int64  `gorm:"uniqueIndex:idx_chats_users;index"`
+	LastMessageId         int64  `gorm:"default:0"`
+	LastActivityAt        int64  `gorm:"default:0"`
+	LastActivityType      string `gorm:"size:20"`
+	LastActivityUserId    int64  `gorm:"default:0"`
+	LastActivityMessageId int64  `gorm:"default:0"`
+	LowLastReadAt         int64  `gorm:"default:0"`
+	HighLastReadAt        int64  `gorm:"default:0"`
+	CreatedAt             int64  `gorm:"autoCreateTime"`
 }
 
 func (Chat) TableName() string {
@@ -39,7 +46,6 @@ type Message struct {
 	Message  string  `gorm:"size:512"`
 	Emotion  *string `gorm:"size:64"`
 	Reaction *string `gorm:"size:64"`
-	ParentId *int64  `gorm:"index"`
 	Time     int64   `gorm:"autoCreateTime"`
 }
 
@@ -48,22 +54,27 @@ func (Message) TableName() string {
 }
 
 type MessageData struct {
-	Id        int64   `json:"id"`
-	SenderId  int64   `json:"senderId"`
-	Type      string  `json:"type"`
-	Message   string  `json:"message"`
-	Emotion   *string `json:"emotion,omitempty"`
-	Reaction  *string `json:"reaction,omitempty"`
-	ParentId  *int64  `json:"parentId,omitempty"`
-	Supported *bool   `json:"supported,omitempty"`
-	Time      int64   `json:"time"`
+	Id       int64   `json:"id"`
+	SenderId int64   `json:"senderId"`
+	Type     string  `json:"type"`
+	Message  string  `json:"message"`
+	Emotion  *string `json:"emotion,omitempty"`
+	Reaction *string `json:"reaction,omitempty"`
+	Time     int64   `json:"time"`
+}
+
+type ActivityData struct {
+	Type    string      `json:"type"`
+	UserId  int64       `json:"userId"`
+	TimeMs  int64       `json:"timeMs"`
+	Message MessageData `json:"message"`
 }
 
 type ChatData struct {
-	Id          int64          `json:"id"`
-	Friend      users.UserData `json:"friend"`
-	LastMessage MessageData    `json:"lastMessage"`
-	Unread      bool           `json:"unread"`
+	Id           int64          `json:"id"`
+	Friend       users.UserData `json:"friend"`
+	LastActivity ActivityData   `json:"lastActivity"`
+	Unread       bool           `json:"unread"`
 }
 
 type SendMessageRequest struct {
@@ -80,8 +91,8 @@ type ReactionRequest struct {
 	Reaction *string
 }
 
-// GetChats gets user's chats ordered by the latest message
-func GetChats(db *gorm.DB, username, lastId string) ([]ChatData, error) {
+// GetChats gets user's chats ordered by the latest activity, a new message or a reaction
+func GetChats(db *gorm.DB, username, lastTimeMs, lastId string) ([]ChatData, error) {
 	user, err := getUser(db, username)
 	if err != nil {
 		return nil, err
@@ -91,13 +102,16 @@ func GetChats(db *gorm.DB, username, lastId string) ([]ChatData, error) {
 		Table("chats").
 		Where("(user_low_id = ? OR user_high_id = ?) AND last_message_id > 0", user.Id, user.Id)
 
-	if lastId != "" {
-		query = query.Where("last_message_id < ?", lastId)
+	if lastTimeMs != "" && lastId != "" {
+		query = query.Where("(last_activity_at < ? OR (last_activity_at = ? AND id < ?))",
+			lastTimeMs, lastTimeMs, lastId)
+	} else if lastTimeMs != "" {
+		query = query.Where("last_activity_at < ?", lastTimeMs)
 	}
 
 	var chats []Chat
 	if err := query.
-		Order("last_message_id DESC").
+		Order("last_activity_at DESC, id DESC").
 		Limit(pageLimit).
 		Find(&chats).
 		Error; err != nil {
@@ -111,7 +125,7 @@ func GetChats(db *gorm.DB, username, lastId string) ([]ChatData, error) {
 	var friendIds, messageIds []int64
 	for _, chat := range chats {
 		friendIds = append(friendIds, friendIdOf(chat, user.Id))
-		messageIds = append(messageIds, chat.LastMessageId)
+		messageIds = append(messageIds, chat.LastActivityMessageId)
 	}
 
 	var friends []users.UserData
@@ -145,29 +159,23 @@ func GetChats(db *gorm.DB, username, lastId string) ([]ChatData, error) {
 
 	var chatsData []ChatData
 	for _, chat := range chats {
-		lastMessage := messagesMap[chat.LastMessageId]
-
 		chatsData = append(chatsData, ChatData{
-			Id:          int64(chat.Id),
-			Friend:      friendsMap[friendIdOf(chat, user.Id)],
-			LastMessage: toMessageData(lastMessage),
-			Unread:      lastMessage.SenderId != user.Id && chat.LastMessageId > lastReadIdOf(chat, user.Id),
+			Id:     int64(chat.Id),
+			Friend: friendsMap[friendIdOf(chat, user.Id)],
+			LastActivity: ActivityData{
+				Type:    chat.LastActivityType,
+				UserId:  chat.LastActivityUserId,
+				TimeMs:  chat.LastActivityAt,
+				Message: toMessageData(messagesMap[chat.LastActivityMessageId]),
+			},
+			Unread: isUnread(chat, user.Id),
 		})
-	}
-
-	lastMessages := make([]*MessageData, len(chatsData))
-	for i := range chatsData {
-		lastMessages[i] = &chatsData[i].LastMessage
-	}
-
-	if err := setSupported(db, lastMessages); err != nil {
-		return nil, err
 	}
 
 	return chatsData, nil
 }
 
-// GetUnreadChats counts chats where the latest message is from the friend and wasn't read yet
+// GetUnreadChats counts chats where the latest activity is from the friend and wasn't read yet
 func GetUnreadChats(db *gorm.DB, username string) (int64, error) {
 	user, err := getUser(db, username)
 	if err != nil {
@@ -177,10 +185,9 @@ func GetUnreadChats(db *gorm.DB, username string) (int64, error) {
 	var count int64
 	if err := db.
 		Table("chats").
-		Joins("JOIN messages ON messages.id = chats.last_message_id").
-		Where(`messages.sender_id <> ? AND (
-			(chats.user_low_id = ? AND chats.last_message_id > chats.low_last_read_id) OR
-			(chats.user_high_id = ? AND chats.last_message_id > chats.high_last_read_id))`,
+		Where(`last_message_id > 0 AND last_activity_user_id <> ? AND (
+			(user_low_id = ? AND last_activity_at > low_last_read_at) OR
+			(user_high_id = ? AND last_activity_at > high_last_read_at))`,
 			user.Id, user.Id, user.Id).
 		Count(&count).
 		Error; err != nil {
@@ -224,19 +231,10 @@ func GetMessages(db *gorm.DB, username, friendId, lastId string) ([]MessageData,
 		messagesData = append(messagesData, toMessageData(message))
 	}
 
-	pointers := make([]*MessageData, len(messagesData))
-	for i := range messagesData {
-		pointers[i] = &messagesData[i]
-	}
-
-	if err := setSupported(db, pointers); err != nil {
-		return nil, err
-	}
-
 	return messagesData, nil
 }
 
-// ReadChat moves user's read position to the latest message of the chat
+// ReadChat moves user's read position to the latest activity of the chat
 func ReadChat(db *gorm.DB, username, friendId string) error {
 	user, err := getUser(db, username)
 	if err != nil {
@@ -248,16 +246,16 @@ func ReadChat(db *gorm.DB, username, friendId string) error {
 		return err
 	}
 
-	column := "high_last_read_id"
+	column := "high_last_read_at"
 	if chat.UserLowId == user.Id {
-		column = "low_last_read_id"
+		column = "low_last_read_at"
 	}
 
 	return db.Transaction(func(tx *gorm.DB) error {
 		return tx.
 			Table("chats").
 			Where("id = ?", chat.Id).
-			Update(column, gorm.Expr("last_message_id")).
+			Update(column, gorm.Expr("last_activity_at")).
 			Error
 	})
 }
@@ -363,45 +361,6 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 	return notify(db, user, t.Ids, user.Name+" is feeling", body)
 }
 
-// SendSupport sends a support message to the friend's emotion
-func SendSupport(db *gorm.DB, username, id string) (MessageData, error) {
-	user, err := getUser(db, username)
-	if err != nil {
-		return MessageData{}, err
-	}
-
-	emotion, err := getFriendMessage(db, user.Id, id)
-	if err != nil {
-		return MessageData{}, err
-	}
-
-	if emotion.Type != EmotionType {
-		return MessageData{}, errors.New("support can be sent only to an emotion")
-	}
-
-	emotionId := int64(emotion.Id)
-	support := Message{
-		ChatId:   emotion.ChatId,
-		SenderId: user.Id,
-		Type:     SupportType,
-		ParentId: &emotionId,
-	}
-
-	if err := db.Transaction(func(tx *gorm.DB) error {
-		return createMessage(tx, &support)
-	}); err != nil {
-		return MessageData{}, err
-	}
-
-	body := "Sent support 🫶 to \"" + messagePreview(emotion) + "\""
-
-	if err := notify(db, user, []int64{emotion.SenderId}, user.Name, body); err != nil {
-		return MessageData{}, err
-	}
-
-	return toMessageData(support), nil
-}
-
 // UpdateReaction sets or removes a reaction on the friend's message
 func UpdateReaction(db *gorm.DB, username, id string, reaction *string) error {
 	user, err := getUser(db, username)
@@ -414,12 +373,25 @@ func UpdateReaction(db *gorm.DB, username, id string, reaction *string) error {
 		return err
 	}
 
+	// Nothing changes, avoids repeated activity and notification
+	if sameReaction(message.Reaction, reaction) {
+		return nil
+	}
+
 	if err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.
+		if err := tx.
 			Table("messages").
 			Where("id = ?", message.Id).
 			Update("reaction", reaction).
-			Error
+			Error; err != nil {
+			return err
+		}
+
+		if reaction == nil {
+			return revertActivity(tx, message.ChatId, int64(message.Id))
+		}
+
+		return setActivity(tx, message.ChatId, user.Id, ReactionActivity, int64(message.Id))
 	}); err != nil {
 		return err
 	}
@@ -430,10 +402,15 @@ func UpdateReaction(db *gorm.DB, username, id string, reaction *string) error {
 
 	body := "Reacted " + *reaction + " to \"" + messagePreview(message) + "\""
 
+	// A reaction on an emotion is a support
+	if message.Type == EmotionType {
+		body = "Sent support 🫶 to \"" + messagePreview(message) + "\""
+	}
+
 	return notify(db, user, []int64{message.SenderId}, user.Name, body)
 }
 
-// DeleteMessage deletes user's own message and moves chat's last message back if needed
+// DeleteMessage deletes user's own message and moves chat's last message and activity back if needed
 func DeleteMessage(db *gorm.DB, username, id string) error {
 	user, err := getUser(db, username)
 	if err != nil {
@@ -468,11 +445,15 @@ func DeleteMessage(db *gorm.DB, username, id string) error {
 			return err
 		}
 
-		return tx.
+		if err := tx.
 			Table("chats").
 			Where("id = ? AND last_message_id = ?", message.ChatId, message.Id).
 			Update("last_message_id", lastMessageId).
-			Error
+			Error; err != nil {
+			return err
+		}
+
+		return revertActivity(tx, message.ChatId, int64(message.Id))
 	})
 }
 
@@ -605,16 +586,76 @@ func getFriendMessage(db *gorm.DB, userId int64, id string) (Message, error) {
 	return message, nil
 }
 
-// createMessage creates a message and sets it as chat's last message
+// createMessage creates a message and sets it as chat's last message and activity
 func createMessage(tx *gorm.DB, message *Message) error {
 	if err := tx.Table("messages").Create(message).Error; err != nil {
 		return err
 	}
 
-	return tx.
+	if err := tx.
 		Table("chats").
 		Where("id = ?", message.ChatId).
 		Update("last_message_id", gorm.Expr("GREATEST(last_message_id, ?)", message.Id)).
+		Error; err != nil {
+		return err
+	}
+
+	return setActivity(tx, message.ChatId, message.SenderId, MessageActivity, int64(message.Id))
+}
+
+// setActivity sets chat's latest activity, the user who made it has read the chat
+func setActivity(tx *gorm.DB, chatId, userId int64, activityType string, messageId int64) error {
+	now := time.Now().UnixMilli()
+
+	return tx.
+		Table("chats").
+		Where("id = ?", chatId).
+		Updates(map[string]interface{}{
+			"last_activity_at":         now,
+			"last_activity_type":       activityType,
+			"last_activity_user_id":    userId,
+			"last_activity_message_id": messageId,
+			"low_last_read_at":         gorm.Expr("IF(user_low_id = ?, ?, low_last_read_at)", userId, now),
+			"high_last_read_at":        gorm.Expr("IF(user_high_id = ?, ?, high_last_read_at)", userId, now),
+		}).
+		Error
+}
+
+// revertActivity sets chat's last message as its latest activity when the latest activity
+// was on the given message, used when a reaction is removed or a message is deleted
+func revertActivity(tx *gorm.DB, chatId, messageId int64) error {
+	var chat Chat
+	if err := tx.
+		Table("chats").
+		Where("id = ?", chatId).
+		First(&chat).
+		Error; err != nil {
+		return err
+	}
+
+	if chat.LastActivityMessageId != messageId {
+		return nil
+	}
+
+	var lastMessage Message
+	if err := tx.
+		Table("messages").
+		Where("id = ?", chat.LastMessageId).
+		Limit(1).
+		Find(&lastMessage).
+		Error; err != nil {
+		return err
+	}
+
+	return tx.
+		Table("chats").
+		Where("id = ?", chatId).
+		Updates(map[string]interface{}{
+			"last_activity_at":         lastMessage.Time * 1000,
+			"last_activity_type":       MessageActivity,
+			"last_activity_user_id":    lastMessage.SenderId,
+			"last_activity_message_id": chat.LastMessageId,
+		}).
 		Error
 }
 
@@ -642,52 +683,9 @@ func notify(db *gorm.DB, sender users.UserData, receiverIds []int64, title, body
 	return service.SendNotification(&fcmNotification)
 }
 
-// setSupported marks emotion messages which have at least one support
-func setSupported(db *gorm.DB, messages []*MessageData) error {
-	var emotionIds []int64
-	for _, message := range messages {
-		if message.Type == EmotionType {
-			emotionIds = append(emotionIds, message.Id)
-		}
-	}
-
-	if len(emotionIds) == 0 {
-		return nil
-	}
-
-	var supportedIds []int64
-	if err := db.
-		Table("messages").
-		Distinct("parent_id").
-		Where("type = ? AND parent_id IN ?", SupportType, emotionIds).
-		Find(&supportedIds).
-		Error; err != nil {
-		return err
-	}
-
-	supported := make(map[int64]bool)
-	for _, id := range supportedIds {
-		supported[id] = true
-	}
-
-	for _, message := range messages {
-		if message.Type == EmotionType {
-			isSupported := supported[message.Id]
-			message.Supported = &isSupported
-		}
-	}
-
-	return nil
-}
-
 func messagePreview(message Message) string {
-	switch message.Type {
-	case SupportType:
-		return "Sent support 🫶"
-	case EmotionType:
-		if message.Emotion != nil {
-			return strings.TrimSpace(message.Message + " " + *message.Emotion)
-		}
+	if message.Emotion != nil {
+		return strings.TrimSpace(message.Message + " " + *message.Emotion)
 	}
 
 	return message.Message
@@ -701,7 +699,6 @@ func toMessageData(message Message) MessageData {
 		Message:  message.Message,
 		Emotion:  message.Emotion,
 		Reaction: message.Reaction,
-		ParentId: message.ParentId,
 		Time:     message.Time,
 	}
 }
@@ -722,10 +719,19 @@ func friendIdOf(chat Chat, userId int64) int64 {
 	return chat.UserLowId
 }
 
-func lastReadIdOf(chat Chat, userId int64) int64 {
+func isUnread(chat Chat, userId int64) bool {
+	lastReadAt := chat.HighLastReadAt
 	if chat.UserLowId == userId {
-		return chat.LowLastReadId
+		lastReadAt = chat.LowLastReadAt
 	}
 
-	return chat.HighLastReadId
+	return chat.LastActivityUserId != userId && chat.LastActivityAt > lastReadAt
+}
+
+func sameReaction(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+
+	return *a == *b
 }

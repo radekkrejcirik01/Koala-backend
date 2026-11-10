@@ -7,15 +7,16 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/chats"
 )
 
-// GetChats GET /chats?lastId=
+// GetChats GET /chats?lastTimeMs=&lastId=
 func GetChats(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
 	if err != nil {
 		return err
 	}
+	lastTimeMs := c.Query("lastTimeMs")
 	lastId := c.Query("lastId")
 
-	data, err := chats.GetChats(database.DB, username, lastId)
+	data, err := chats.GetChats(database.DB, username, lastTimeMs, lastId)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
@@ -155,29 +156,6 @@ func SendChatEmotion(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(Response{
 		Status:  "success",
 		Message: "Emotion successfully sent",
-	})
-}
-
-// SendChatSupport POST /chats/messages/:id/support
-func SendChatSupport(c *fiber.Ctx) error {
-	username, err := middleware.Authorize(c)
-	if err != nil {
-		return err
-	}
-	id := c.Params("id")
-
-	message, err := chats.SendSupport(database.DB, username, id)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(ChatMessageResponse{
-		Status:  "success",
-		Message: "Support successfully sent",
-		Data:    message,
 	})
 }
 
