@@ -13,3 +13,9 @@ aws lambda update-function-code --function-name koala --zip-file fileb://koala.z
 
 ## Invoke
 aws lambda invoke --function-name koala --invocation-type "RequestResponse" response.txt
+
+## Migrations
+Migrations don't run on every cold start, they run only when `MIGRATE=true` is set.
+After deploying a change of models, enable it, invoke the function once and disable it again:
+
+aws lambda update-function-configuration --function-name koala --environment "Variables={...,MIGRATE=true}"

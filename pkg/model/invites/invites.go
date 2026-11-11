@@ -8,8 +8,8 @@ import (
 
 type Invite struct {
 	Id       uint   `gorm:"primary_key;auto_increment;not_null"`
-	Sender   string `gorm:"size:256"`
-	Receiver string `gorm:"size:256"`
+	Sender   string `gorm:"size:256;index:idx_invites_sender_receiver"`
+	Receiver string `gorm:"size:256;index:idx_invites_sender_receiver;index"`
 	Accepted int
 }
 
@@ -31,6 +31,7 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 	var user users.UserData
 	if err := db.
 		Table("users").
+		Select("id, username").
 		Where("username = ?", t.Receiver).
 		Find(&user).
 		Error; err != nil {
@@ -49,6 +50,7 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 		Table("invites").
 		Where("(sender = ? AND receiver = ?) OR (sender = ? AND receiver = ?)",
 			t.Sender, t.Receiver, t.Receiver, t.Sender).
+		Limit(1).
 		Find(&invite).
 		Error; err != nil {
 		return "", err
@@ -66,10 +68,7 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 		Receiver: t.Receiver,
 	}
 
-	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("invites").Create(&newInvite).Error
-	})
-	if err != nil {
+	if err := db.Table("invites").Create(&newInvite).Error; err != nil {
 		return "", err
 	}
 
@@ -95,15 +94,11 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 
 // AcceptInvite updates accepted column in invites table
 func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
-	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("invites").
-			Where("receiver = ? AND sender = ?", t.Sender, t.Receiver).
-			Update("accepted", 1).
-			Error
-	})
-
-	if err != nil {
+	if err := db.
+		Table("invites").
+		Where("receiver = ? AND sender = ?", t.Sender, t.Receiver).
+		Update("accepted", 1).
+		Error; err != nil {
 		return "", err
 	}
 
@@ -133,6 +128,7 @@ func GetFriends(db *gorm.DB, username string) ([]users.UserData, error) {
 
 	if err := db.
 		Table("invites").
+		Select("sender, receiver").
 		Where("(sender = ? OR receiver = ?) AND accepted = 1", username, username).
 		Find(&invites).
 		Error; err != nil {
@@ -141,19 +137,27 @@ func GetFriends(db *gorm.DB, username string) ([]users.UserData, error) {
 
 	usernames := GetUsernamesFromInvites(invites, username)
 
+	if len(usernames) == 0 {
+		return nil, nil
+	}
+
 	var usersArray []users.UserData
 	if err := db.
 		Table("users").
+		Select("id, username, name, profile_photo").
 		Where("username IN ?", usernames).
 		Find(&usersArray).Error; err != nil {
 		return nil, err
 	}
 
+	usersMap := make(map[string]users.UserData, len(usersArray))
+	for _, user := range usersArray {
+		usersMap[user.Username] = user
+	}
+
 	var usersData []users.UserData
 	for _, username := range usernames {
-		user := getUser(usersArray, username)
-
-		usersData = append(usersData, user)
+		usersData = append(usersData, usersMap[username])
 	}
 
 	return usersData, nil
@@ -167,10 +171,15 @@ func GetInvites(db *gorm.DB, username string) ([]InviteData, error) {
 
 	if err := db.
 		Table("invites").
+		Select("sender").
 		Where("receiver = ? AND accepted = 0", username).
 		Find(&invites).
 		Error; err != nil {
 		return nil, err
+	}
+
+	if len(invites) == 0 {
+		return nil, nil
 	}
 
 	for _, invite := range invites {
@@ -179,6 +188,7 @@ func GetInvites(db *gorm.DB, username string) ([]InviteData, error) {
 
 	if err := db.
 		Table("users").
+		Select("id, username, profile_photo").
 		Where("username IN ?", usernames).
 		Find(&data).
 		Error; err != nil {
@@ -201,14 +211,12 @@ func RemoveFriend(db *gorm.DB, id string, username string) error {
 		return err
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("invites").
-			Where("(sender = ? AND receiver = ?) OR (sender = ? AND receiver = ?)",
-				user, username, username, user).
-			Delete(&Invite{}).
-			Error
-	})
+	return db.
+		Table("invites").
+		Where("(sender = ? AND receiver = ?) OR (sender = ? AND receiver = ?)",
+			user, username, username, user).
+		Delete(&Invite{}).
+		Error
 }
 
 // RemoveInvite remove invite form invites table, id is the sender's user id
@@ -224,13 +232,11 @@ func RemoveInvite(db *gorm.DB, id string, username string) error {
 		return err
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("invites").
-			Where("sender = ? AND receiver = ? AND accepted = 0", sender, username).
-			Delete(&Invite{}).
-			Error
-	})
+	return db.
+		Table("invites").
+		Where("sender = ? AND receiver = ? AND accepted = 0", sender, username).
+		Delete(&Invite{}).
+		Error
 }
 
 // Helper function to get usernames from invites
@@ -246,15 +252,4 @@ func GetUsernamesFromInvites(invites []Invite, username string) []string {
 	}
 
 	return usernames
-}
-
-// helper function to get user form users array
-func getUser(usersArray []users.UserData, username string) users.UserData {
-	for _, user := range usersArray {
-		if user.Username == username {
-			return user
-		}
-	}
-
-	return users.UserData{}
 }

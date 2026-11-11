@@ -6,7 +6,7 @@ import (
 
 type Device struct {
 	Id          uint   `gorm:"primary_key;auto_increment;not_null"`
-	Username    string `gorm:"size:256"`
+	Username    string `gorm:"size:256;index"`
 	UserId      int64  `gorm:"index"`
 	DeviceToken string
 	Platform    string
@@ -31,11 +31,9 @@ func SaveDevice(db *gorm.DB, t *Device) error {
 
 // DeleteDevice delete all devices from devices table
 func DeleteDevice(db *gorm.DB, username string) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("devices").
-			Where("username = ?", username).
-			Delete(&Device{}).
-			Error
-	})
+	return db.
+		Table("devices").
+		Where("username = ?", username).
+		Delete(&Device{}).
+		Error
 }

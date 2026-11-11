@@ -251,13 +251,11 @@ func ReadChat(db *gorm.DB, username, friendId string) error {
 		column = "low_last_read_at"
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("chats").
-			Where("id = ?", chat.Id).
-			Update(column, gorm.Expr("last_activity_at")).
-			Error
-	})
+	return db.
+		Table("chats").
+		Where("id = ?", chat.Id).
+		Update(column, gorm.Expr("last_activity_at")).
+		Error
 }
 
 // SendMessage sends a text message to the chat with a friend
@@ -319,6 +317,8 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 		return err
 	}
 
+	ids := uniqueIds(t.Ids)
+
 	err = db.Transaction(func(tx *gorm.DB) error {
 		emotion := emotions.Emotion{
 			UserId:  user.Id,
@@ -329,20 +329,27 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 			return err
 		}
 
-		for _, id := range t.Ids {
-			chat, err := getOrCreateChat(tx, user, id)
-			if err != nil {
-				return err
-			}
+		chats, err := getOrCreateChats(tx, user, ids)
+		if err != nil {
+			return err
+		}
 
-			message := Message{
+		messages := make([]Message, 0, len(chats))
+		for _, chat := range chats {
+			messages = append(messages, Message{
 				ChatId:   int64(chat.Id),
 				SenderId: user.Id,
 				Type:     EmotionType,
 				Message:  t.Message,
 				Emotion:  t.Emotion,
-			}
-			if err := createMessage(tx, &message); err != nil {
+			})
+		}
+		if err := tx.Table("messages").Create(&messages).Error; err != nil {
+			return err
+		}
+
+		for _, message := range messages {
+			if err := setLastMessage(tx, message); err != nil {
 				return err
 			}
 		}
@@ -358,7 +365,7 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 		body = strings.TrimSpace(body + " " + *t.Emotion)
 	}
 
-	return notify(db, user, t.Ids, user.Name+" is feeling", body)
+	return notify(db, user, ids, user.Name+" is feeling", body)
 }
 
 // UpdateReaction sets or removes a reaction on the friend's message
@@ -513,60 +520,94 @@ func getChat(db *gorm.DB, userId int64, friendId string) (Chat, error) {
 
 // getOrCreateChat gets the chat between user and friend, a new chat can be created only between friends
 func getOrCreateChat(tx *gorm.DB, user users.UserData, friendId int64) (Chat, error) {
-	if friendId == user.Id {
-		return Chat{}, errors.New("cannot send a message to yourself")
-	}
-
-	chat, err := getChat(tx, user.Id, strconv.FormatInt(friendId, 10))
-	if err != nil || chat.Id != 0 {
-		return chat, err
-	}
-
-	friends, err := areFriends(tx, user.Username, friendId)
+	chats, err := getOrCreateChats(tx, user, []int64{friendId})
 	if err != nil {
 		return Chat{}, err
 	}
-	if !friends {
-		return Chat{}, errors.New("user is not your friend")
-	}
 
-	low, high := sortIds(user.Id, friendId)
-	chat = Chat{
-		UserLowId:  low,
-		UserHighId: high,
-	}
-
-	err = tx.Table("chats").Create(&chat).Error
-
-	return chat, err
+	return chats[0], nil
 }
 
-func areFriends(db *gorm.DB, username string, friendId int64) (bool, error) {
-	var friendUsername string
-	if err := db.
-		Table("users").
-		Select("username").
-		Where("id = ?", friendId).
-		Find(&friendUsername).
+// getOrCreateChats gets the chats between user and friends in the order of friendIds,
+// new chats can be created only between friends
+func getOrCreateChats(tx *gorm.DB, user users.UserData, friendIds []int64) ([]Chat, error) {
+	for _, id := range friendIds {
+		if id == user.Id {
+			return nil, errors.New("cannot send a message to yourself")
+		}
+	}
+
+	var existing []Chat
+	if err := tx.
+		Table("chats").
+		Where("(user_low_id = ? AND user_high_id IN ?) OR (user_high_id = ? AND user_low_id IN ?)",
+			user.Id, friendIds, user.Id, friendIds).
+		Find(&existing).
 		Error; err != nil {
-		return false, err
+		return nil, err
 	}
 
-	if friendUsername == "" {
-		return false, nil
+	chatsMap := make(map[int64]Chat, len(friendIds))
+	for _, chat := range existing {
+		chatsMap[friendIdOf(chat, user.Id)] = chat
 	}
 
+	var missingIds []int64
+	for _, id := range friendIds {
+		if _, ok := chatsMap[id]; !ok {
+			missingIds = append(missingIds, id)
+		}
+	}
+
+	if len(missingIds) > 0 {
+		count, err := countFriends(tx, user.Username, missingIds)
+		if err != nil {
+			return nil, err
+		}
+		if count != int64(len(missingIds)) {
+			return nil, errors.New("user is not your friend")
+		}
+
+		newChats := make([]Chat, 0, len(missingIds))
+		for _, id := range missingIds {
+			low, high := sortIds(user.Id, id)
+			newChats = append(newChats, Chat{
+				UserLowId:  low,
+				UserHighId: high,
+			})
+		}
+		if err := tx.Table("chats").Create(&newChats).Error; err != nil {
+			return nil, err
+		}
+
+		for _, chat := range newChats {
+			chatsMap[friendIdOf(chat, user.Id)] = chat
+		}
+	}
+
+	chats := make([]Chat, 0, len(friendIds))
+	for _, id := range friendIds {
+		chats = append(chats, chatsMap[id])
+	}
+
+	return chats, nil
+}
+
+// countFriends counts how many of the given users are user's friends
+func countFriends(db *gorm.DB, username string, friendIds []int64) (int64, error) {
 	var count int64
-	if err := db.
-		Table("invites").
-		Where("((sender = ? AND receiver = ?) OR (sender = ? AND receiver = ?)) AND accepted = 1",
-			username, friendUsername, friendUsername, username).
+	err := db.
+		Table("users").
+		Joins(`JOIN invites ON invites.accepted = 1 AND (
+			(invites.sender = ? AND invites.receiver = users.username) OR
+			(invites.sender = users.username AND invites.receiver = ?))`,
+			username, username).
+		Where("users.id IN ?", friendIds).
+		Distinct("users.id").
 		Count(&count).
-		Error; err != nil {
-		return false, err
-	}
+		Error
 
-	return count > 0, nil
+	return count, err
 }
 
 // getFriendMessage gets a message sent by the friend in one of user's chats
@@ -592,33 +633,41 @@ func createMessage(tx *gorm.DB, message *Message) error {
 		return err
 	}
 
-	if err := tx.
+	return setLastMessage(tx, *message)
+}
+
+// setLastMessage sets the message as chat's last message and activity in one update
+func setLastMessage(tx *gorm.DB, message Message) error {
+	values := activityValues(message.SenderId, MessageActivity, int64(message.Id))
+	values["last_message_id"] = gorm.Expr("GREATEST(last_message_id, ?)", message.Id)
+
+	return tx.
 		Table("chats").
 		Where("id = ?", message.ChatId).
-		Update("last_message_id", gorm.Expr("GREATEST(last_message_id, ?)", message.Id)).
-		Error; err != nil {
-		return err
-	}
-
-	return setActivity(tx, message.ChatId, message.SenderId, MessageActivity, int64(message.Id))
+		Updates(values).
+		Error
 }
 
 // setActivity sets chat's latest activity, the user who made it has read the chat
 func setActivity(tx *gorm.DB, chatId, userId int64, activityType string, messageId int64) error {
-	now := time.Now().UnixMilli()
-
 	return tx.
 		Table("chats").
 		Where("id = ?", chatId).
-		Updates(map[string]interface{}{
-			"last_activity_at":         now,
-			"last_activity_type":       activityType,
-			"last_activity_user_id":    userId,
-			"last_activity_message_id": messageId,
-			"low_last_read_at":         gorm.Expr("IF(user_low_id = ?, ?, low_last_read_at)", userId, now),
-			"high_last_read_at":        gorm.Expr("IF(user_high_id = ?, ?, high_last_read_at)", userId, now),
-		}).
+		Updates(activityValues(userId, activityType, messageId)).
 		Error
+}
+
+func activityValues(userId int64, activityType string, messageId int64) map[string]interface{} {
+	now := time.Now().UnixMilli()
+
+	return map[string]interface{}{
+		"last_activity_at":         now,
+		"last_activity_type":       activityType,
+		"last_activity_user_id":    userId,
+		"last_activity_message_id": messageId,
+		"low_last_read_at":         gorm.Expr("IF(user_low_id = ?, ?, low_last_read_at)", userId, now),
+		"high_last_read_at":        gorm.Expr("IF(user_high_id = ?, ?, high_last_read_at)", userId, now),
+	}
 }
 
 // revertActivity sets chat's last message as its latest activity when the latest activity
@@ -701,6 +750,19 @@ func toMessageData(message Message) MessageData {
 		Reaction: message.Reaction,
 		Time:     message.Time,
 	}
+}
+
+func uniqueIds(ids []int64) []int64 {
+	seen := make(map[int64]bool, len(ids))
+	var unique []int64
+	for _, id := range ids {
+		if !seen[id] {
+			seen[id] = true
+			unique = append(unique, id)
+		}
+	}
+
+	return unique
 }
 
 func sortIds(a, b int64) (int64, int64) {

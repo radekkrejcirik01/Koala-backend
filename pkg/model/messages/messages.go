@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
@@ -56,33 +57,39 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 		mType = KudosEmotionMessageType
 	}
 
+	if len(t.Ids) == 0 {
+		return errors.New("ids are required")
+	}
+
+	for _, id := range t.Ids {
+		messages = append(messages, notifications.Notification{
+			SenderId:   user.Id,
+			ReceiverId: id,
+			Type:       mType,
+			Message:    t.Message,
+			Emotion:    t.Emotion,
+		})
+	}
+
 	err := db.Transaction(func(tx *gorm.DB) error {
-		for _, id := range t.Ids {
-			messages = append(messages, notifications.Notification{
-				SenderId:   user.Id,
-				ReceiverId: id,
-				Type:       mType,
-				Message:    t.Message,
-				Emotion:    t.Emotion,
-			})
+		if err := tx.Table("notifications").Create(&messages).Error; err != nil {
+			return err
 		}
 
-		return tx.Table("notifications").Create(&messages).Error
+		// Each emotion message starts its own conversation
+		var ids []uint
+		for _, message := range messages {
+			ids = append(ids, message.Id)
+		}
+
+		return tx.
+			Table("notifications").
+			Where("id IN ?", ids).
+			Update("conversation_id", gorm.Expr("id")).
+			Error
 	})
 	if err != nil {
 		return err
-	}
-
-	for _, message := range messages {
-		err := db.Transaction(func(tx *gorm.DB) error {
-			return tx.Table("notifications").
-				Where("id = ?", message.Id).
-				Update("conversation_id", message.Id).
-				Error
-		})
-		if err != nil {
-			return err
-		}
 	}
 
 	var tokens []string
@@ -143,15 +150,11 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 		AudioMessage:   audioMessage,
 	}
 
-	err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("notifications").Create(&message).Error
-	})
-	if err != nil {
+	if err := db.Table("notifications").Create(&message).Error; err != nil {
 		return err
 	}
 
-	var tokens []string
-	tokens, err = service.GetTokensByUserId(db, t.ReceiverId)
+	tokens, err := service.GetTokensByUserId(db, t.ReceiverId)
 	if err != nil {
 		return err
 	}
@@ -183,13 +186,11 @@ func DeleteMessage(db *gorm.DB, username, id string) error {
 		return err
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("notifications").
-			Where("id = ? AND sender_id = ?", id, userId).
-			Delete(&notifications.Notification{}).
-			Error
-	})
+	return db.
+		Table("notifications").
+		Where("id = ? AND sender_id = ?", id, userId).
+		Delete(&notifications.Notification{}).
+		Error
 }
 
 // Check if audio message has length

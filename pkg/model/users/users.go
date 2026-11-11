@@ -66,11 +66,12 @@ func CreateUser(db *gorm.DB, t *User) error {
 func LoginUser(db *gorm.DB, t *Login) error {
 	t.Password = middleware.GetHashPassword(t.Password)
 
-	var user User
+	var id int64
 	return db.
 		Table("users").
+		Select("id").
 		Where("username = ? AND password = ?", t.Username, t.Password).
-		First(&user).
+		Take(&id).
 		Error
 }
 
@@ -110,13 +111,11 @@ func CheckUsername(db *gorm.DB, username string) error {
 }
 
 func ChangeName(db *gorm.DB, username string, t *Name) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("users").
-			Where("username = ?", username).
-			Update("name", t.Name).
-			Error
-	})
+	return db.
+		Table("users").
+		Where("username = ?", username).
+		Update("name", t.Name).
+		Error
 }
 
 // ChangePassword change user password in users table
@@ -124,35 +123,32 @@ func ChangePassword(db *gorm.DB, username string, t *Password) error {
 	oldPassword := middleware.GetHashPassword(t.OldPassword)
 	newPassword := middleware.GetHashPassword(t.NewPassword)
 
-	var user User
+	var id int64
 	err := db.
 		Table("users").
+		Select("id").
 		Where("username = ? AND password = ?", username, oldPassword).
-		First(&user).
+		Take(&id).
 		Error
 
 	if err != nil {
 		return errors.New("incorrect old password")
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("users").
-			Where("id = ?", user.Id).
-			Update("password", newPassword).
-			Error
-	})
+	return db.
+		Table("users").
+		Where("id = ?", id).
+		Update("password", newPassword).
+		Error
 }
 
 // UpdateLastOnline in users table
 func UpdateLastOnline(db *gorm.DB, username string) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("users").
-			Where("username = ?", username).
-			Update("last_online", time.Now().Unix()).
-			Error
-	})
+	return db.
+		Table("users").
+		Where("username = ?", username).
+		Update("last_online", time.Now().Unix()).
+		Error
 }
 
 // GetLastOnline from users table

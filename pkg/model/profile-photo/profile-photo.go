@@ -6,10 +6,8 @@ import (
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +17,6 @@ type ProfilePhoto struct {
 }
 
 func UploadProfilePhoto(db *gorm.DB, username string, t *ProfilePhoto) (string, error) {
-	accessKey, secretAccessKey := database.GetCredentials()
 	var userId int64
 
 	if err := db.
@@ -31,18 +28,7 @@ func UploadProfilePhoto(db *gorm.DB, username string, t *ProfilePhoto) (string, 
 		return "", err
 	}
 
-	sess := session.Must(session.NewSession(
-		&aws.Config{
-			Region: aws.String("eu-central-1"),
-			Credentials: credentials.NewStaticCredentials(
-				accessKey,
-				secretAccessKey,
-				"", // a token will be created when the session it's used.
-			),
-		}))
-
-	// Create an uploader with the session and default options
-	uploader := s3manager.NewUploader(sess)
+	uploader := service.GetS3Uploader()
 
 	decode, _ := base64.StdEncoding.DecodeString(t.Buffer)
 	// Upload the file to S3.

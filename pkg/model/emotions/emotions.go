@@ -5,11 +5,11 @@ import (
 )
 
 type Emotion struct {
-	Id      uint `gorm:"primary_key;auto_increment;not_null"`
-	UserId  int64
+	Id      uint    `gorm:"primary_key;auto_increment;not_null"`
+	UserId  int64   `gorm:"index:idx_emotions_user_time"`
 	Emotion *string `gorm:"size:64"`
 	Message string  `gorm:"size:512"`
-	Time    int64   `gorm:"autoCreateTime"`
+	Time    int64   `gorm:"autoCreateTime;index:idx_emotions_user_time"`
 }
 
 func (Emotion) TableName() string {

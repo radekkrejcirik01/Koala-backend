@@ -9,14 +9,14 @@ import (
 )
 
 type Notification struct {
-	Id             uint `gorm:"primary_key;auto_increment;not_null"`
-	SenderId       int64
-	ReceiverId     int64
-	Type           string `gorm:"size:20"`
-	Message        string `gorm:"size:512"`
-	Time           int64  `gorm:"autoCreateTime"`
-	Seen           int    `gorm:"default:0"`
-	ConversationId *int64
+	Id             uint    `gorm:"primary_key;auto_increment;not_null"`
+	SenderId       int64   `gorm:"index"`
+	ReceiverId     int64   `gorm:"index:idx_notifications_receiver_seen"`
+	Type           string  `gorm:"size:20"`
+	Message        string  `gorm:"size:512"`
+	Time           int64   `gorm:"autoCreateTime"`
+	Seen           int     `gorm:"default:0;index:idx_notifications_receiver_seen"`
+	ConversationId *int64  `gorm:"index"`
 	ReplyMessage   *string `gorm:"size:512"`
 	AudioMessage   *string `gorm:"size:512"`
 	Reaction       *string `gorm:"size:64"`
@@ -97,10 +97,15 @@ func GetNotifications(db *gorm.DB, username string, lastId string) ([]Notificati
 		return nil, err
 	}
 
+	if len(notifications) == 0 {
+		return nil, nil
+	}
+
 	userIds := getUserIdsFromNotifications(notifications, userId)
 
 	if err := db.
 		Table("users").
+		Select("id, username, name, profile_photo").
 		Where("id IN ?", userIds).
 		Find(&usersData).
 		Error; err != nil {
@@ -189,14 +194,12 @@ func UpdateSeenNotification(db *gorm.DB, username, id string) error {
 		return err
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("notifications").
-			Where("receiver_id = ? AND seen = 0 AND (conversation_id = ? OR id = ?)",
-				receiverId, id, id).
-			Update("seen", 1).
-			Error
-	})
+	return db.
+		Table("notifications").
+		Where("receiver_id = ? AND seen = 0 AND (conversation_id = ? OR id = ?)",
+			receiverId, id, id).
+		Update("seen", 1).
+		Error
 }
 
 // UpdateNotificationReaction update a notification reaction field in notifications table
@@ -210,13 +213,11 @@ func UpdateNotificationReaction(db *gorm.DB, username, id string, reaction *stri
 		return err
 	}
 
-	if err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.
-			Table("notifications").
-			Where("id = ?", id).
-			Update("reaction", reaction).
-			Error
-	}); err != nil {
+	if err := db.
+		Table("notifications").
+		Where("id = ?", id).
+		Update("reaction", reaction).
+		Error; err != nil {
 		return err
 	}
 
@@ -284,9 +285,7 @@ func UpdateNotificationSupport(db *gorm.DB, username, id string) error {
 		ConversationId: &conversationId,
 	}
 
-	if err := db.Transaction(func(tx *gorm.DB) error {
-		return tx.Table("notifications").Create(&support).Error
-	}); err != nil {
+	if err := db.Table("notifications").Create(&support).Error; err != nil {
 		return err
 	}
 

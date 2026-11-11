@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -46,19 +47,31 @@ func init() {
 
 // Connect to MySQL server
 func Connect() {
-	fmt.Println(dbhost)
+	// interpolateParams sends a query with its args in one round trip instead of prepare, execute and close
 	dsn := fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		"%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local&interpolateParams=true",
 		dbuser,
 		dbpassword,
 		dbhost,
 		dbport,
 		dbname,
 	)
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	// Multi statement writes use explicit transactions, single statements don't need one
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{SkipDefaultTransaction: true})
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Lambda instance handles one request at a time, keep the pool small and drop stale connections
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal(err)
+	}
+	sqlDB.SetMaxOpenConns(5)
+	sqlDB.SetMaxIdleConns(2)
+	sqlDB.SetConnMaxLifetime(5 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(time.Minute)
+
 	DB = db
 }
 

@@ -8,31 +8,16 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
 )
 
 func UploadRecording(buffer string, userId int64) (string, error) {
-	accessKey, secretAccessKey := database.GetCredentials()
-
 	id := strconv.Itoa(int(userId))
 
 	fileName := getFileName()
 
-	sess := session.Must(session.NewSession(
-		&aws.Config{
-			Region: aws.String("eu-central-1"),
-			Credentials: credentials.NewStaticCredentials(
-				accessKey,
-				secretAccessKey,
-				"", // a token will be created when the session it's used.
-			),
-		}))
-
-	// Create an uploader with the session and default options
-	uploader := s3manager.NewUploader(sess)
+	uploader := service.GetS3Uploader()
 
 	decode, _ := base64.StdEncoding.DecodeString(buffer)
 	// Upload the file to S3.
