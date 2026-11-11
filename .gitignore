@@ -1,4 +1,11 @@
 # Ignore the Firebase Cloud Messaging client configuration file
 fcm-client.json
-koala.zip
+
+# Build output
+bootstrap
 main
+koala.zip
+koala-arm.zip
+
+# Lambda invoke output
+response.txt
