@@ -67,7 +67,7 @@ func Connect() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sqlDB.SetMaxOpenConns(5)
+	sqlDB.SetMaxOpenConns(2)
 	sqlDB.SetMaxIdleConns(2)
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 	sqlDB.SetConnMaxIdleTime(time.Minute)
