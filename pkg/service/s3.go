@@ -1,6 +1,7 @@
 package service
 
 import (
+	"os"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -34,4 +35,14 @@ func GetS3Uploader() *s3manager.Uploader {
 	})
 
 	return s3Uploader
+}
+
+// GetMediaUrl returns the public URL of an uploaded file, served from MEDIA_URL (CloudFront) when it's set
+func GetMediaUrl(key string, s3Location string) string {
+	mediaUrl := os.Getenv("MEDIA_URL")
+	if mediaUrl == "" {
+		return s3Location
+	}
+
+	return mediaUrl + "/" + key
 }

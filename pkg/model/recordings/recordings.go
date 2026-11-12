@@ -20,10 +20,11 @@ func UploadRecording(buffer string, userId int64) (string, error) {
 	uploader := service.GetS3Uploader()
 
 	decode, _ := base64.StdEncoding.DecodeString(buffer)
+	key := "recordings/" + id + "/" + fileName
 	// Upload the file to S3.
 	result, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket:      aws.String("koala-bucket-voice-messages"),
-		Key:         aws.String("recordings/" + id + "/" + fileName),
+		Key:         aws.String(key),
 		Body:        bytes.NewReader(decode),
 		ContentType: aws.String("audio/mpeg"),
 	})
@@ -31,7 +32,7 @@ func UploadRecording(buffer string, userId int64) (string, error) {
 		return "", err
 	}
 
-	return result.Location, nil
+	return service.GetMediaUrl(key, result.Location), nil
 }
 
 func getFileName() string {

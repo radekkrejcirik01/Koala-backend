@@ -31,10 +31,11 @@ func UploadProfilePhoto(db *gorm.DB, username string, t *ProfilePhoto) (string, 
 	uploader := service.GetS3Uploader()
 
 	decode, _ := base64.StdEncoding.DecodeString(t.Buffer)
+	key := "profile-photos/" + strconv.Itoa(int(userId)) + "/" + t.FileName
 	// Upload the file to S3.
 	result, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket:      aws.String("koala-bucket-profile-photos"),
-		Key:         aws.String("profile-photos/" + strconv.Itoa(int(userId)) + "/" + t.FileName),
+		Key:         aws.String(key),
 		Body:        bytes.NewReader(decode),
 		ContentType: aws.String("image/jpeg"),
 	})
@@ -42,13 +43,15 @@ func UploadProfilePhoto(db *gorm.DB, username string, t *ProfilePhoto) (string, 
 		return "", err
 	}
 
+	photoUrl := service.GetMediaUrl(key, result.Location)
+
 	if err := db.
 		Table("users").
 		Where("id = ?", userId).
-		Update("profile_photo", result.Location).
+		Update("profile_photo", photoUrl).
 		Error; err != nil {
 		return "", err
 	}
 
-	return result.Location, nil
+	return photoUrl, nil
 }
