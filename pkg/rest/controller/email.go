@@ -2,36 +2,15 @@ package controller
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
-	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
 )
 
 // SendPasswordResetEmail POST /password-reset
+// Disabled: it reset any account to a shared password and emailed it to an address chosen by the caller.
+// Kept so old app versions get an answer, the new reset flow replaces it.
+// Not 200, old app versions treat any 200 body as a sent email.
 func SendPasswordResetEmail(c *fiber.Ctx) error {
-	t := &service.ResetPasswordEmail{}
-
-	if err := c.BodyParser(t); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	if err := service.SendPasswordResetEmail(database.DB, t); err != nil {
-		status := fiber.StatusInternalServerError
-
-		if err.Error() == "incorrect" {
-			status = fiber.StatusOK
-		}
-
-		return c.Status(status).JSON(Response{
-			Status:  "error",
-			Message: err.Error(),
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(Response{
-		Status:  "success",
-		Message: "Email successfully sent",
+	return c.Status(fiber.StatusServiceUnavailable).JSON(Response{
+		Status:  "error",
+		Message: "Password reset is temporarily unavailable, please contact support",
 	})
 }
