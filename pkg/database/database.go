@@ -19,8 +19,6 @@ var (
 	accessKey       = ""
 	secretAccessKey = ""
 	jwtsecret       = ""
-	email           = ""
-	emailpassword   = ""
 )
 
 // DB is connected MySQL DB
@@ -37,9 +35,6 @@ func init() {
 	secretAccessKey = os.Getenv("SECRETACCESSKEY")
 
 	jwtsecret = os.Getenv("JWTSECRET")
-
-	email = os.Getenv("EMAIL")
-	emailpassword = os.Getenv("EMAILPASSWORD")
 }
 
 // Connect to MySQL server
@@ -78,8 +73,4 @@ func GetCredentials() (string, string) {
 
 func GetJWTSecret() string {
 	return jwtsecret
-}
-
-func GetEmailCredentials() (string, string) {
-	return email, emailpassword
 }
