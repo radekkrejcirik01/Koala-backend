@@ -20,6 +20,9 @@ const ReactionActivity = "reaction"
 
 const pageLimit = 20
 
+// previewLimit caps quoted message text in reaction notifications
+const previewLimit = 150
+
 type Chat struct {
 	Id                    uint   `gorm:"primary_key;auto_increment;not_null"`
 	UserLowId             int64  `gorm:"uniqueIndex:idx_chats_users"`
@@ -326,6 +329,17 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 			Message: t.Message,
 		}
 		if err := tx.Table("emotions").Create(&emotion).Error; err != nil {
+			return err
+		}
+
+		recipients := make([]emotions.Recipient, 0, len(ids))
+		for _, id := range ids {
+			recipients = append(recipients, emotions.Recipient{
+				EmotionId: int64(emotion.Id),
+				UserId:    id,
+			})
+		}
+		if err := tx.Table("emotion_recipients").Create(&recipients).Error; err != nil {
 			return err
 		}
 
@@ -733,11 +747,22 @@ func notify(db *gorm.DB, sender users.UserData, receiverIds []int64, title, body
 }
 
 func messagePreview(message Message) string {
+	preview := truncate(message.Message, previewLimit)
 	if message.Emotion != nil {
-		return strings.TrimSpace(message.Message + " " + *message.Emotion)
+		return strings.TrimSpace(preview + " " + *message.Emotion)
 	}
 
-	return message.Message
+	return preview
+}
+
+// truncate cuts text to limit characters, keeps multi-byte characters like emoji whole
+func truncate(text string, limit int) string {
+	runes := []rune(text)
+	if len(runes) <= limit {
+		return text
+	}
+
+	return strings.TrimSpace(string(runes[:limit])) + "…"
 }
 
 func toMessageData(message Message) MessageData {

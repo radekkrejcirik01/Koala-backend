@@ -7,7 +7,7 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 )
 
-// GetEmotions GET /emotions?from=&to=
+// GetEmotions GET /emotions?from=&to=&limit=&lastTime=&lastId=
 func GetEmotions(c *fiber.Ctx) error {
 	username, err := middleware.Authorize(c)
 	if err != nil {
@@ -15,8 +15,11 @@ func GetEmotions(c *fiber.Ctx) error {
 	}
 	from := c.Query("from")
 	to := c.Query("to")
+	limit := c.Query("limit")
+	lastTime := c.Query("lastTime")
+	lastId := c.Query("lastId")
 
-	e, err := emotions.GetEmotions(database.DB, username, from, to)
+	e, err := emotions.GetEmotions(database.DB, username, from, to, lastTime, lastId, limit)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{

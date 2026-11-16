@@ -60,6 +60,11 @@ func DeleteAccount(db *gorm.DB, username string) error {
 			return err
 		}
 
+		// Recipients first, they're found through user's emotions
+		if err := emotions.DeleteUserRecipients(tx, userId); err != nil {
+			return err
+		}
+
 		if err := tx.
 			Table("emotions").
 			Where("user_id = ?", userId).

@@ -38,6 +38,7 @@ func migrate() {
 		&devices.Device{},
 		&notifications.Notification{},
 		&emotions.Emotion{},
+		&emotions.Recipient{},
 		&chats.Chat{},
 		&chats.Message{},
 	); err != nil {
