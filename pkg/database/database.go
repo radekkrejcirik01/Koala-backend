@@ -11,14 +11,12 @@ import (
 )
 
 var (
-	dbhost          = ""
-	dbport          = ""
-	dbuser          = ""
-	dbpassword      = ""
-	dbname          = ""
-	accessKey       = ""
-	secretAccessKey = ""
-	jwtsecret       = ""
+	dbhost     = ""
+	dbport     = ""
+	dbuser     = ""
+	dbpassword = ""
+	dbname     = ""
+	jwtsecret  = ""
 )
 
 // DB is connected MySQL DB
@@ -30,9 +28,6 @@ func init() {
 	dbuser = os.Getenv("DBUSER")
 	dbpassword = os.Getenv("DBPASSWORD")
 	dbname = os.Getenv("DBNAME")
-
-	accessKey = os.Getenv("ACCESSKEY")
-	secretAccessKey = os.Getenv("SECRETACCESSKEY")
 
 	jwtsecret = os.Getenv("JWTSECRET")
 }
@@ -65,10 +60,6 @@ func Connect() {
 	sqlDB.SetConnMaxIdleTime(time.Minute)
 
 	DB = db
-}
-
-func GetCredentials() (string, string) {
-	return accessKey, secretAccessKey
 }
 
 func GetJWTSecret() string {
