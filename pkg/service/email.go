@@ -81,3 +81,18 @@ func SendFeedback(t *Feedback) error {
 
 	return sendEmail(supportEmail, "Koala Feedback", body, nil)
 }
+
+func SendEmailVerificationCode(to, code string) error {
+	body := fmt.Sprintf("Hi,\n\nyour code to verify this email for your Koala account is %s\n\n"+
+		"It expires in 15 minutes. If you didn't ask for it, you can ignore this email.\n\nKoala Team\n", code)
+
+	return sendEmail(to, "Koala email verification", body, nil)
+}
+
+func SendPasswordResetCode(to, username, code string) error {
+	body := fmt.Sprintf("Hi %s,\n\nyour code to reset the password of your Koala account is %s\n\n"+
+		"It expires in 15 minutes. If you didn't ask for it, you can ignore this email, your password stays the same.\n\nKoala Team\n",
+		username, code)
+
+	return sendEmail(to, "Koala password reset", body, nil)
+}

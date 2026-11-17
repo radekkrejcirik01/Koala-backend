@@ -26,6 +26,8 @@ func Create() *fiber.App {
 	app.Post("/emotion-message/:type?", controller.SendEmotionMessage)
 	app.Post("/message", controller.SendMessage)
 	app.Post("/password-reset", controller.SendPasswordResetEmail)
+	app.Post("/password-reset/request", controller.RequestPasswordReset)
+	app.Post("/password-reset/confirm", controller.ResetPassword)
 	app.Post("/support", controller.SendSupport)
 	app.Post("/feedback", controller.SendFeedback)
 	app.Post("/profile-photo", controller.UploadProfilePhoto)
@@ -36,6 +38,8 @@ func Create() *fiber.App {
 	app.Put("/notification-support/:id", controller.UpdateNotificationSupport)
 	app.Put("/user-name", controller.ChangeName)
 	app.Put("/user-password", controller.ChangePassword)
+	app.Put("/user-email", controller.ChangeEmail)
+	app.Put("/user-email/verify", controller.VerifyEmail)
 	app.Put("/last-online", controller.UpdateLastOnline)
 
 	app.Delete("/account", controller.DeleteAccount)

@@ -10,6 +10,7 @@ import (
 	fiberadapter "github.com/awslabs/aws-lambda-go-api-proxy/fiber"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/chats"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/codes"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/devices"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
@@ -41,6 +42,7 @@ func migrate() {
 		&emotions.Recipient{},
 		&chats.Chat{},
 		&chats.Message{},
+		&codes.Code{},
 	); err != nil {
 		log.Fatal(err)
 	}

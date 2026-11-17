@@ -2,6 +2,7 @@ package account
 
 import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/chats"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/codes"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/devices"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
@@ -53,6 +54,10 @@ func DeleteAccount(db *gorm.DB, username string) error {
 			Where("sender_id = ? OR receiver_id = ?", userId, userId).
 			Delete(&notifications.Notification{}).
 			Error; err != nil {
+			return err
+		}
+
+		if err := codes.DeleteUserCodes(tx, userId); err != nil {
 			return err
 		}
 

@@ -1,9 +1,12 @@
 package controller
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/middleware"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/codes"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 )
 
@@ -32,7 +35,7 @@ func CreateUser(c *fiber.Ctx) error {
 		})
 
 	}
-	token, tokenErr := middleware.CreateJWT(t.Username)
+	token, tokenErr := middleware.CreateJWT(t.Username, 0)
 	if tokenErr != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": tokenErr.Error(),
@@ -57,14 +60,15 @@ func LoginUser(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := users.LoginUser(database.DB, t); err != nil {
+	tokenVersion, err := users.LoginUser(database.DB, t)
+	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
 			Message: err.Error(),
 		})
 	}
 
-	token, err := middleware.CreateJWT(t.Username)
+	token, err := middleware.CreateJWT(t.Username, tokenVersion)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -185,6 +189,76 @@ func ChangePassword(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(Response{
 		Status:  "success",
 		Message: "Password successfully changed",
+	})
+}
+
+// ChangeEmail PUT /user-email
+func ChangeEmail(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	t := &users.Email{}
+
+	if err := c.BodyParser(t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	if err := users.ChangeEmail(database.DB, username, t); err != nil {
+		status := fiber.StatusInternalServerError
+
+		if errors.Is(err, users.ErrInvalidEmail) || errors.Is(err, codes.ErrTooSoon) {
+			status = fiber.StatusBadRequest
+		}
+
+		return c.Status(status).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Verification code successfully sent",
+	})
+}
+
+// VerifyEmail PUT /user-email/verify
+func VerifyEmail(c *fiber.Ctx) error {
+	username, err := middleware.Authorize(c)
+	if err != nil {
+		return err
+	}
+
+	t := &users.EmailCode{}
+
+	if err := c.BodyParser(t); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	if err := users.VerifyEmail(database.DB, username, t); err != nil {
+		status := fiber.StatusInternalServerError
+
+		if errors.Is(err, codes.ErrInvalid) {
+			status = fiber.StatusBadRequest
+		}
+
+		return c.Status(status).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(Response{
+		Status:  "success",
+		Message: "Email successfully verified",
 	})
 }
 
