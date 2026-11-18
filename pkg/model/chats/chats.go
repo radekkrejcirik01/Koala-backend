@@ -34,6 +34,8 @@ type Chat struct {
 	LastActivityMessageId int64  `gorm:"default:0"`
 	LowLastReadAt         int64  `gorm:"default:0"`
 	HighLastReadAt        int64  `gorm:"default:0"`
+	LowLastReadMessageId  int64  `gorm:"default:0"`
+	HighLastReadMessageId int64  `gorm:"default:0"`
 	CreatedAt             int64  `gorm:"autoCreateTime"`
 }
 
@@ -200,16 +202,22 @@ func GetUnreadChats(db *gorm.DB, username string) (int64, error) {
 	return count, nil
 }
 
-// GetMessages gets messages of the chat with a friend, newest first
-func GetMessages(db *gorm.DB, username, friendId, lastId string) ([]MessageData, error) {
+// GetMessages gets messages of the chat with a friend, newest first,
+// and the id of the last message user read before opening the chat
+func GetMessages(db *gorm.DB, username, friendId, lastId string) ([]MessageData, int64, error) {
 	user, err := getUser(db, username)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	chat, err := getChat(db, user.Id, friendId)
 	if err != nil || chat.Id == 0 {
-		return nil, err
+		return nil, 0, err
+	}
+
+	lastReadId := chat.HighLastReadMessageId
+	if chat.UserLowId == user.Id {
+		lastReadId = chat.LowLastReadMessageId
 	}
 
 	query := db.
@@ -226,7 +234,7 @@ func GetMessages(db *gorm.DB, username, friendId, lastId string) ([]MessageData,
 		Limit(pageLimit).
 		Find(&messages).
 		Error; err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var messagesData []MessageData
@@ -234,10 +242,10 @@ func GetMessages(db *gorm.DB, username, friendId, lastId string) ([]MessageData,
 		messagesData = append(messagesData, toMessageData(message))
 	}
 
-	return messagesData, nil
+	return messagesData, lastReadId, nil
 }
 
-// ReadChat moves user's read position to the latest activity of the chat
+// ReadChat moves user's read position to the latest activity and last message of the chat
 func ReadChat(db *gorm.DB, username, friendId string) error {
 	user, err := getUser(db, username)
 	if err != nil {
@@ -249,15 +257,18 @@ func ReadChat(db *gorm.DB, username, friendId string) error {
 		return err
 	}
 
-	column := "high_last_read_at"
+	prefix := "high"
 	if chat.UserLowId == user.Id {
-		column = "low_last_read_at"
+		prefix = "low"
 	}
 
 	return db.
 		Table("chats").
 		Where("id = ?", chat.Id).
-		Update(column, gorm.Expr("last_activity_at")).
+		Updates(map[string]interface{}{
+			prefix + "_last_read_at":         gorm.Expr("last_activity_at"),
+			prefix + "_last_read_message_id": gorm.Expr("last_message_id"),
+		}).
 		Error
 }
 
@@ -658,7 +669,8 @@ func createMessage(tx *gorm.DB, message *Message) error {
 
 // setLastMessage sets the message as chat's last message and activity in one update
 func setLastMessage(tx *gorm.DB, message Message) error {
-	values := activityValues(message.SenderId, MessageActivity, int64(message.Id))
+	// The sender has read the chat up to their own message
+	values := activityValues(message.SenderId, MessageActivity, int64(message.Id), message.Id)
 	values["last_message_id"] = gorm.Expr("GREATEST(last_message_id, ?)", message.Id)
 
 	return tx.
@@ -673,20 +685,23 @@ func setActivity(tx *gorm.DB, chatId, userId int64, activityType string, message
 	return tx.
 		Table("chats").
 		Where("id = ?", chatId).
-		Updates(activityValues(userId, activityType, messageId)).
+		Updates(activityValues(userId, activityType, messageId, gorm.Expr("last_message_id"))).
 		Error
 }
 
-func activityValues(userId int64, activityType string, messageId int64) map[string]interface{} {
+// activityValues sets the latest activity, readMessageId is the last message the user who made it has read
+func activityValues(userId int64, activityType string, messageId int64, readMessageId interface{}) map[string]interface{} {
 	now := time.Now().UnixMilli()
 
 	return map[string]interface{}{
-		"last_activity_at":         now,
-		"last_activity_type":       activityType,
-		"last_activity_user_id":    userId,
-		"last_activity_message_id": messageId,
-		"low_last_read_at":         gorm.Expr("IF(user_low_id = ?, ?, low_last_read_at)", userId, now),
-		"high_last_read_at":        gorm.Expr("IF(user_high_id = ?, ?, high_last_read_at)", userId, now),
+		"last_activity_at":          now,
+		"last_activity_type":        activityType,
+		"last_activity_user_id":     userId,
+		"last_activity_message_id":  messageId,
+		"low_last_read_at":          gorm.Expr("IF(user_low_id = ?, ?, low_last_read_at)", userId, now),
+		"high_last_read_at":         gorm.Expr("IF(user_high_id = ?, ?, high_last_read_at)", userId, now),
+		"low_last_read_message_id":  gorm.Expr("IF(user_low_id = ?, ?, low_last_read_message_id)", userId, readMessageId),
+		"high_last_read_message_id": gorm.Expr("IF(user_high_id = ?, ?, high_last_read_message_id)", userId, readMessageId),
 	}
 }
 

@@ -62,7 +62,7 @@ func GetChatMessages(c *fiber.Ctx) error {
 	friendId := c.Params("friendId")
 	lastId := c.Query("lastId")
 
-	data, err := chats.GetMessages(database.DB, username, friendId, lastId)
+	data, lastReadId, err := chats.GetMessages(database.DB, username, friendId, lastId)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
@@ -71,9 +71,10 @@ func GetChatMessages(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(ChatMessagesResponse{
-		Status:  "success",
-		Message: "Messages successfully got",
-		Data:    data,
+		Status:     "success",
+		Message:    "Messages successfully got",
+		Data:       data,
+		LastReadId: lastReadId,
 	})
 }
 

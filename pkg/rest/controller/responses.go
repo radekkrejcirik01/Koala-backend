@@ -80,9 +80,10 @@ type UnreadChatsResponse struct {
 }
 
 type ChatMessagesResponse struct {
-	Status  string              `json:"status"`
-	Message string              `json:"message,omitempty"`
-	Data    []chats.MessageData `json:"data,omitempty"`
+	Status     string              `json:"status"`
+	Message    string              `json:"message,omitempty"`
+	Data       []chats.MessageData `json:"data,omitempty"`
+	LastReadId int64               `json:"lastReadId,omitempty"`
 }
 
 type ChatMessageResponse struct {
