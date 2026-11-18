@@ -305,12 +305,10 @@ func SendMessage(db *gorm.DB, username, friendId string, t *SendMessageRequest) 
 	return toMessageData(message), nil
 }
 
-// SendEmotion sends an emotion to the chats with friends and saves it to emotions history
+// SendEmotion sends an emotion to the chats with friends and saves it to emotions history,
+// without ids the emotion is only logged to the history
 func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 	t.Message = strings.TrimSpace(t.Message)
-	if len(t.Ids) == 0 {
-		return errors.New("ids are required")
-	}
 	if t.Message == "" && (t.Emotion == nil || *t.Emotion == "") {
 		return errors.New("emotion or message is required")
 	}
@@ -330,6 +328,10 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 		}
 		if err := tx.Table("emotions").Create(&emotion).Error; err != nil {
 			return err
+		}
+
+		if len(ids) == 0 {
+			return nil
 		}
 
 		recipients := make([]emotions.Recipient, 0, len(ids))
@@ -372,6 +374,10 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	if len(ids) == 0 {
+		return nil
 	}
 
 	body := t.Message
