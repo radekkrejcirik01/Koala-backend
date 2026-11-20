@@ -2,11 +2,14 @@ package controller
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/middleware"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/codes"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/connections"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 )
 
@@ -282,16 +285,46 @@ func UpdateLastOnline(c *fiber.Ctx) error {
 	})
 }
 
-// GetLastOnline GET /last-online/:id
+// GetLastOnline GET /last-online/:id, only friends can see user's online status
 func GetLastOnline(c *fiber.Ctx) error {
-	_, err := middleware.Authorize(c)
+	username, err := middleware.Authorize(c)
 	if err != nil {
 		return err
 	}
 
 	id := c.Params("id")
 
+	userId, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	isFriend, err := invites.IsFriend(database.DB, username, userId)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+	if !isFriend {
+		return c.Status(fiber.StatusForbidden).JSON(Response{
+			Status:  "error",
+			Message: "user is not your friend",
+		})
+	}
+
 	time, err := users.GetLastOnline(database.DB, id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	onlineIds, err := connections.GetOnlineUserIds(database.DB, []int64{userId})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
@@ -303,5 +336,6 @@ func GetLastOnline(c *fiber.Ctx) error {
 		Status:  "success",
 		Message: "Successfully got last online time",
 		Time:    time,
+		Online:  len(onlineIds) > 0,
 	})
 }

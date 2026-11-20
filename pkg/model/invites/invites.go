@@ -122,6 +122,22 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 	return "", service.SendNotification(&fcmNotification)
 }
 
+// IsFriend checks if the user with friendId is user's friend
+func IsFriend(db *gorm.DB, username string, friendId int64) (bool, error) {
+	var count int64
+	err := db.
+		Table("users").
+		Joins(`JOIN invites ON invites.accepted = 1 AND (
+			(invites.sender = ? AND invites.receiver = users.username) OR
+			(invites.sender = users.username AND invites.receiver = ?))`,
+			username, username).
+		Where("users.id = ?", friendId).
+		Count(&count).
+		Error
+
+	return count > 0, err
+}
+
 // GetFriends gets friend from invites
 func GetFriends(db *gorm.DB, username string) ([]users.UserData, error) {
 	var invites []Invite

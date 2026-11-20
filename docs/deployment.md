@@ -58,3 +58,40 @@ Needed only after a change of models (a new table, column or index), do it at a 
    ```sh
    aws lambda put-function-concurrency --function-name koala --reserved-concurrent-executions 40
    ```
+
+## WebSocket API
+The same `koala` function serves the WebSocket API (typing, presence and live chat updates),
+it sends events back through `WS_ENDPOINT`. The app's side is described in `docs/websocket.md`.
+
+1. Create the API, the Lambda integration, the routes and the stage
+   ```sh
+   API_ID=$(aws apigatewayv2 create-api --name koala-ws --protocol-type WEBSOCKET \
+     --route-selection-expression '$request.body.action' --query ApiId --output text)
+
+   INTEGRATION_ID=$(aws apigatewayv2 create-integration --api-id $API_ID --integration-type AWS_PROXY \
+     --integration-uri arn:aws:apigateway:eu-central-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-central-1:832685173872:function:koala/invocations \
+     --query IntegrationId --output text)
+
+   for ROUTE in '$connect' '$disconnect' '$default' 'typing'; do
+     aws apigatewayv2 create-route --api-id $API_ID --route-key "$ROUTE" --target integrations/$INTEGRATION_ID
+   done
+
+   aws apigatewayv2 create-stage --api-id $API_ID --stage-name prod --auto-deploy
+   ```
+2. Allow the API to invoke the function
+   ```sh
+   aws lambda add-permission --function-name koala --statement-id koala-ws \
+     --action lambda:InvokeFunction --principal apigateway.amazonaws.com \
+     --source-arn "arn:aws:execute-api:eu-central-1:832685173872:$API_ID/*"
+   ```
+3. Allow the function to send to the connections
+   ```sh
+   aws iam put-role-policy --role-name lambda-basic-execution --policy-name koala-ws-connections \
+     --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"execute-api:ManageConnections\",\"Resource\":\"arn:aws:execute-api:eu-central-1:832685173872:$API_ID/prod/POST/@connections/*\"}]}"
+   ```
+4. Set `WS_ENDPOINT` to `https://$API_ID.execute-api.eu-central-1.amazonaws.com/prod` in the console,
+   same as `MIGRATE` in Migrations. Without it the function works, it only sends no socket events.
+5. Run the migration, it creates the `connections` table
+6. The app connects to `wss://$API_ID.execute-api.eu-central-1.amazonaws.com/prod`
+
+WebSocket invocations share the reserved concurrency and DB connections with the REST API.

@@ -29,6 +29,7 @@ type LastOnlineResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message,omitempty"`
 	Time    int64  `json:"time"`
+	Online  bool   `json:"online"`
 }
 
 type FriendsResponse struct {

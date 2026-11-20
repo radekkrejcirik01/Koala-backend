@@ -3,6 +3,7 @@ package account
 import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/chats"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/codes"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/connections"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/devices"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
@@ -62,6 +63,10 @@ func DeleteAccount(db *gorm.DB, username string) error {
 		}
 
 		if err := chats.DeleteUserChats(tx, userId); err != nil {
+			return err
+		}
+
+		if err := connections.DeleteUserConnections(tx, userId); err != nil {
 			return err
 		}
 

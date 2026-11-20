@@ -45,6 +45,11 @@ func Authorize(c *fiber.Ctx) (string, error) {
 		return "", fiber.ErrUnauthorized
 	}
 
+	return AuthorizeToken(tokenString)
+}
+
+// AuthorizeToken validates the JWT token and returns its username
+func AuthorizeToken(tokenString string) (string, error) {
 	// Get the key or public key used for validating the signature
 	key := []byte(database.GetJWTSecret())
 

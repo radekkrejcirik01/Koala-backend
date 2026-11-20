@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/connections"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
@@ -94,6 +95,36 @@ type SendEmotionRequest struct {
 
 type ReactionRequest struct {
 	Reaction *string
+}
+
+// Socket events data, friendId is the other user of the chat from the receiver's view
+
+type MessageEventData struct {
+	FriendId int64       `json:"friendId"`
+	Message  MessageData `json:"message"`
+}
+
+type MessageDeletedEventData struct {
+	FriendId int64 `json:"friendId"`
+	Id       int64 `json:"id"`
+}
+
+type MessageReactionEventData struct {
+	FriendId int64   `json:"friendId"`
+	Id       int64   `json:"id"`
+	Reaction *string `json:"reaction"`
+}
+
+type ChatReadEventData struct {
+	FriendId          int64 `json:"friendId"`
+	ReaderId          int64 `json:"readerId"`
+	LastReadMessageId int64 `json:"lastReadMessageId"`
+	LastReadAt        int64 `json:"lastReadAt"`
+}
+
+type TypingEventData struct {
+	FriendId int64 `json:"friendId"`
+	Typing   bool  `json:"typing"`
 }
 
 // GetChats gets user's chats ordered by the latest activity, a new message or a reaction
@@ -262,14 +293,28 @@ func ReadChat(db *gorm.DB, username, friendId string) error {
 		prefix = "low"
 	}
 
-	return db.
+	if err := db.
 		Table("chats").
 		Where("id = ?", chat.Id).
 		Updates(map[string]interface{}{
 			prefix + "_last_read_at":         gorm.Expr("last_activity_at"),
 			prefix + "_last_read_message_id": gorm.Expr("last_message_id"),
 		}).
-		Error
+		Error; err != nil {
+		return err
+	}
+
+	connections.Send(db, toBoth(user.Id, friendIdOf(chat, user.Id), connections.ChatReadEvent,
+		func(friendId int64) interface{} {
+			return ChatReadEventData{
+				FriendId:          friendId,
+				ReaderId:          user.Id,
+				LastReadMessageId: chat.LastMessageId,
+				LastReadAt:        chat.LastActivityAt,
+			}
+		}))
+
+	return nil
 }
 
 // SendMessage sends a text message to the chat with a friend
@@ -309,6 +354,12 @@ func SendMessage(db *gorm.DB, username, friendId string, t *SendMessageRequest) 
 		return MessageData{}, err
 	}
 
+	messageData := toMessageData(message)
+	connections.Send(db, toBoth(user.Id, receiverId, connections.MessageNewEvent,
+		func(friendId int64) interface{} {
+			return MessageEventData{FriendId: friendId, Message: messageData}
+		}))
+
 	if err := notify(db, user, []int64{receiverId}, user.Name, t.Message); err != nil {
 		return MessageData{}, err
 	}
@@ -331,6 +382,7 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 
 	ids := uniqueIds(t.Ids)
 
+	var messages []Message
 	err = db.Transaction(func(tx *gorm.DB) error {
 		emotion := emotions.Emotion{
 			UserId:  user.Id,
@@ -361,7 +413,7 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 			return err
 		}
 
-		messages := make([]Message, 0, len(chats))
+		messages = make([]Message, 0, len(chats))
 		for _, chat := range chats {
 			messages = append(messages, Message{
 				ChatId:   int64(chat.Id),
@@ -390,6 +442,17 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 	if len(ids) == 0 {
 		return nil
 	}
+
+	// Messages are in the order of ids
+	var deliveries []connections.Delivery
+	for i, message := range messages {
+		messageData := toMessageData(message)
+		deliveries = append(deliveries, toBoth(user.Id, ids[i], connections.MessageNewEvent,
+			func(friendId int64) interface{} {
+				return MessageEventData{FriendId: friendId, Message: messageData}
+			})...)
+	}
+	connections.Send(db, deliveries)
 
 	body := t.Message
 	if t.Emotion != nil {
@@ -434,6 +497,11 @@ func UpdateReaction(db *gorm.DB, username, id string, reaction *string) error {
 		return err
 	}
 
+	connections.Send(db, toBoth(user.Id, message.SenderId, connections.MessageReactionEvent,
+		func(friendId int64) interface{} {
+			return MessageReactionEventData{FriendId: friendId, Id: int64(message.Id), Reaction: reaction}
+		}))
+
 	if reaction == nil {
 		return nil
 	}
@@ -464,7 +532,16 @@ func DeleteMessage(db *gorm.DB, username, id string) error {
 		return err
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
+	var chat Chat
+	if err := db.
+		Table("chats").
+		Where("id = ?", message.ChatId).
+		First(&chat).
+		Error; err != nil {
+		return err
+	}
+
+	if err := db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.
 			Table("messages").
 			Where("id = ?", message.Id).
@@ -492,7 +569,37 @@ func DeleteMessage(db *gorm.DB, username, id string) error {
 		}
 
 		return revertActivity(tx, message.ChatId, int64(message.Id))
-	})
+	}); err != nil {
+		return err
+	}
+
+	connections.Send(db, toBoth(user.Id, friendIdOf(chat, user.Id), connections.MessageDeletedEvent,
+		func(friendId int64) interface{} {
+			return MessageDeletedEventData{FriendId: friendId, Id: int64(message.Id)}
+		}))
+
+	return nil
+}
+
+// SendTyping sends user's typing state to the friend
+func SendTyping(db *gorm.DB, user users.UserData, friendId int64, typing bool) error {
+	count, err := countFriends(db, user.Username, []int64{friendId})
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return errors.New("user is not your friend")
+	}
+
+	connections.Send(db, []connections.Delivery{{
+		UserId: friendId,
+		Event: connections.Event{
+			Type: connections.TypingEvent,
+			Data: TypingEventData{FriendId: user.Id, Typing: typing},
+		},
+	}})
+
+	return nil
 }
 
 // DeleteUserChats deletes all chats of the user with their messages
@@ -795,6 +902,15 @@ func toMessageData(message Message) MessageData {
 		Emotion:  message.Emotion,
 		Reaction: message.Reaction,
 		Time:     message.Time,
+	}
+}
+
+// toBoth creates the event for both users of the chat, each with the other user as friendId,
+// user's event also reaches user's other devices
+func toBoth(userId, friendId int64, eventType string, data func(friendId int64) interface{}) []connections.Delivery {
+	return []connections.Delivery{
+		{UserId: friendId, Event: connections.Event{Type: eventType, Data: data(userId)}},
+		{UserId: userId, Event: connections.Event{Type: eventType, Data: data(friendId)}},
 	}
 }
 

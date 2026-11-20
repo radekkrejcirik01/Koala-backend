@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 
@@ -11,12 +12,14 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/chats"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/codes"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/connections"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/devices"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/rest"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/websocket"
 )
 
 var fiberLambda *fiberadapter.FiberLambda
@@ -43,13 +46,38 @@ func migrate() {
 		&chats.Chat{},
 		&chats.Message{},
 		&codes.Code{},
+		&connections.Connection{},
 	); err != nil {
 		log.Fatal(err)
 	}
 }
 
-// Handler will deal with Fiber working with Lambda
-func Handler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+// eventContext tells the WebSocket API events, which have a connection id, from the REST API ones
+type eventContext struct {
+	RequestContext struct {
+		ConnectionID string `json:"connectionId"`
+	} `json:"requestContext"`
+}
+
+// Handler serves the REST API with Fiber and the WebSocket API routes from the same function
+func Handler(ctx context.Context, event json.RawMessage) (events.APIGatewayProxyResponse, error) {
+	var eventCtx eventContext
+	if err := json.Unmarshal(event, &eventCtx); err != nil {
+		return events.APIGatewayProxyResponse{}, err
+	}
+
+	if eventCtx.RequestContext.ConnectionID != "" {
+		var request events.APIGatewayWebsocketProxyRequest
+		if err := json.Unmarshal(event, &request); err != nil {
+			return events.APIGatewayProxyResponse{}, err
+		}
+		return websocket.Handle(request), nil
+	}
+
+	var request events.APIGatewayProxyRequest
+	if err := json.Unmarshal(event, &request); err != nil {
+		return events.APIGatewayProxyResponse{}, err
+	}
 	return fiberLambda.ProxyWithContext(ctx, request)
 }
 
