@@ -5,6 +5,7 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/settings"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 )
 
@@ -85,6 +86,20 @@ type ChatMessagesResponse struct {
 	Message    string              `json:"message,omitempty"`
 	Data       []chats.MessageData `json:"data,omitempty"`
 	LastReadId int64               `json:"lastReadId,omitempty"`
+}
+
+type ChatEmotionsResponse struct {
+	Status      string              `json:"status"`
+	Message     string              `json:"message,omitempty"`
+	Data        []chats.MessageData `json:"data,omitempty"`
+	UserCount   *int64              `json:"userCount,omitempty"`
+	FriendCount *int64              `json:"friendCount,omitempty"`
+}
+
+type ChatSettingsResponse struct {
+	Status  string                `json:"status"`
+	Message string                `json:"message,omitempty"`
+	Data    settings.SettingsData `json:"data"`
 }
 
 type ChatMessageResponse struct {

@@ -17,6 +17,7 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/settings"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/rest"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/websocket"
@@ -47,6 +48,7 @@ func migrate() {
 		&chats.Message{},
 		&codes.Code{},
 		&connections.Connection{},
+		&settings.Setting{},
 	); err != nil {
 		log.Fatal(err)
 	}

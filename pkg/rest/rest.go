@@ -51,9 +51,13 @@ func Create() *fiber.App {
 	app.Get("/chats", controller.GetChats)
 	app.Get("/chats/unread", controller.GetUnreadChats)
 	app.Get("/chats/:friendId/messages", controller.GetChatMessages)
+	app.Get("/chats/:friendId/messages/search", controller.SearchChatMessages)
+	app.Get("/chats/:friendId/emotions", controller.GetChatEmotions)
+	app.Get("/chats/:friendId/settings", controller.GetChatSettings)
 	app.Post("/chats/emotion", controller.SendChatEmotion)
 	app.Post("/chats/:friendId/messages", controller.SendChatMessage)
 	app.Put("/chats/:friendId/read", controller.ReadChat)
+	app.Put("/chats/:friendId/settings", controller.UpdateChatSettings)
 	app.Put("/chats/messages/:id/reaction", controller.UpdateChatReaction)
 	app.Delete("/chats/messages/:id", controller.DeleteChatMessage)
 

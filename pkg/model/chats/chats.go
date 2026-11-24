@@ -5,9 +5,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/connections"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/settings"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/service"
 	"gorm.io/gorm"
@@ -20,6 +22,11 @@ const MessageActivity = "message"
 const ReactionActivity = "reaction"
 
 const pageLimit = 20
+
+// rangeLimit caps emotions returned for a time range, like the mood overview
+const rangeLimit = 500
+
+var ErrNotFriend = errors.New("user is not your friend")
 
 // previewLimit caps quoted message text in reaction notifications
 const previewLimit = 150
@@ -74,6 +81,12 @@ type ActivityData struct {
 	UserId  int64       `json:"userId"`
 	TimeMs  int64       `json:"timeMs"`
 	Message MessageData `json:"message"`
+}
+
+type EmotionsData struct {
+	Messages    []MessageData
+	UserCount   *int64
+	FriendCount *int64
 }
 
 type ChatData struct {
@@ -174,6 +187,10 @@ func GetChats(db *gorm.DB, username, lastTimeMs, lastId string) ([]ChatData, err
 		return nil, err
 	}
 
+	if err := settings.SetNicknames(db, username, friends); err != nil {
+		return nil, err
+	}
+
 	var messages []Message
 	if err := db.
 		Table("messages").
@@ -234,8 +251,10 @@ func GetUnreadChats(db *gorm.DB, username string) (int64, error) {
 }
 
 // GetMessages gets messages of the chat with a friend, newest first,
-// and the id of the last message user read before opening the chat
-func GetMessages(db *gorm.DB, username, friendId, lastId string) ([]MessageData, int64, error) {
+// and the id of the last message user read before opening the chat.
+// Older messages are paged by lastId, newer ones by firstId, aroundId gets the messages
+// around the given one, used to jump to a search result
+func GetMessages(db *gorm.DB, username, friendId, lastId, firstId, aroundId string) ([]MessageData, int64, error) {
 	user, err := getUser(db, username)
 	if err != nil {
 		return nil, 0, err
@@ -251,9 +270,65 @@ func GetMessages(db *gorm.DB, username, friendId, lastId string) ([]MessageData,
 		lastReadId = chat.LowLastReadMessageId
 	}
 
+	var messages []Message
+	switch {
+	case aroundId != "":
+		// The message itself is the first of the older ones
+		older, err := findMessages(db, int64(chat.Id), "id <= ?", aroundId, "id DESC", pageLimit+1)
+		if err != nil {
+			return nil, 0, err
+		}
+		if len(older) == 0 || strconv.FormatInt(int64(older[0].Id), 10) != aroundId {
+			return nil, 0, errors.New("message not found")
+		}
+
+		newer, err := findMessages(db, int64(chat.Id), "id > ?", aroundId, "id ASC", pageLimit)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		messages = append(reversed(newer), older...)
+	case firstId != "":
+		newer, err := findMessages(db, int64(chat.Id), "id > ?", firstId, "id ASC", pageLimit)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		messages = reversed(newer)
+	case lastId != "":
+		messages, err = findMessages(db, int64(chat.Id), "id < ?", lastId, "id DESC", pageLimit)
+	default:
+		messages, err = findMessages(db, int64(chat.Id), "", nil, "id DESC", pageLimit)
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return toMessagesData(messages), lastReadId, nil
+}
+
+// SearchMessages searches text of messages and emotions in the chat with a friend,
+// ignoring case, newest first, paginated by lastId
+func SearchMessages(db *gorm.DB, username, friendId, q, lastId string) ([]MessageData, error) {
+	q = strings.TrimSpace(q)
+	if q == "" {
+		return nil, errors.New("query is required")
+	}
+
+	user, err := getUser(db, username)
+	if err != nil {
+		return nil, err
+	}
+
+	chat, err := getChat(db, user.Id, friendId)
+	if err != nil || chat.Id == 0 {
+		return nil, err
+	}
+
+	// The column's collation ignores case
 	query := db.
 		Table("messages").
-		Where("chat_id = ?", chat.Id)
+		Where("chat_id = ? AND message LIKE ?", chat.Id, "%"+escapeLike(q)+"%")
 
 	if lastId != "" {
 		query = query.Where("id < ?", lastId)
@@ -265,15 +340,161 @@ func GetMessages(db *gorm.DB, username, friendId, lastId string) ([]MessageData,
 		Limit(pageLimit).
 		Find(&messages).
 		Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	var messagesData []MessageData
-	for _, message := range messages {
-		messagesData = append(messagesData, toMessageData(message))
+	return toMessagesData(messages), nil
+}
+
+// GetEmotions gets emotions shared in the chat with a friend, newest first, senderId filters them by sender.
+// The list is paginated by lastId, its first page also has the count of each user's emotions.
+// With from it gets all friend's emotions since then, like for the mood overview, only between friends
+func GetEmotions(db *gorm.DB, username, friendId, senderId, lastId, from string) (EmotionsData, error) {
+	user, err := getUser(db, username)
+	if err != nil {
+		return EmotionsData{}, err
 	}
 
-	return messagesData, lastReadId, nil
+	friend, err := strconv.ParseInt(friendId, 10, 64)
+	if err != nil {
+		return EmotionsData{}, err
+	}
+
+	if senderId != "" && senderId != strconv.FormatInt(user.Id, 10) && senderId != friendId {
+		return EmotionsData{}, errors.New("sender must be you or the friend")
+	}
+
+	if from != "" {
+		count, err := countFriends(db, user.Username, []int64{friend})
+		if err != nil {
+			return EmotionsData{}, err
+		}
+		if count == 0 {
+			return EmotionsData{}, ErrNotFriend
+		}
+	}
+
+	chat, err := getChat(db, user.Id, friendId)
+	if err != nil || chat.Id == 0 {
+		return EmotionsData{}, err
+	}
+
+	query := db.
+		Table("messages").
+		Where("chat_id = ? AND type = ?", chat.Id, EmotionType)
+
+	if senderId != "" {
+		query = query.Where("sender_id = ?", senderId)
+	}
+
+	limit := pageLimit
+	if from != "" {
+		query = query.Where("time >= ?", from)
+		limit = rangeLimit
+	} else if lastId != "" {
+		query = query.Where("id < ?", lastId)
+	}
+
+	var messages []Message
+	if err := query.
+		Order("id DESC").
+		Limit(limit).
+		Find(&messages).
+		Error; err != nil {
+		return EmotionsData{}, err
+	}
+
+	data := EmotionsData{Messages: toMessagesData(messages)}
+
+	if from != "" || lastId != "" {
+		return data, nil
+	}
+
+	var counts []struct {
+		SenderId int64
+		Count    int64
+	}
+	if err := db.
+		Table("messages").
+		Select("sender_id, COUNT(*) AS count").
+		Where("chat_id = ? AND type = ?", chat.Id, EmotionType).
+		Group("sender_id").
+		Find(&counts).
+		Error; err != nil {
+		return EmotionsData{}, err
+	}
+
+	var userCount, friendCount int64
+	for _, c := range counts {
+		if c.SenderId == user.Id {
+			userCount = c.Count
+		} else if c.SenderId == friend {
+			friendCount = c.Count
+		}
+	}
+	data.UserCount = &userCount
+	data.FriendCount = &friendCount
+
+	return data, nil
+}
+
+// GetSettings gets user's private settings of the chat with a friend
+func GetSettings(db *gorm.DB, username, friendId string) (settings.SettingsData, error) {
+	user, err := getUser(db, username)
+	if err != nil {
+		return settings.SettingsData{}, err
+	}
+
+	id, err := strconv.ParseInt(friendId, 10, 64)
+	if err != nil {
+		return settings.SettingsData{}, err
+	}
+
+	return settings.Get(db, user.Id, id)
+}
+
+// UpdateSettings updates user's private settings of the chat with a friend,
+// missing fields stay unchanged, null or an empty value removes the setting
+func UpdateSettings(db *gorm.DB, username, friendId string, t *settings.UpdateRequest) error {
+	user, err := getUser(db, username)
+	if err != nil {
+		return err
+	}
+
+	id, err := strconv.ParseInt(friendId, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	count, err := countFriends(db, user.Username, []int64{id})
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrNotFriend
+	}
+
+	setting := settings.Setting{UserId: user.Id, FriendId: id}
+	var columns []string
+
+	if t.Nickname.Set {
+		if setting.Nickname, err = settingValue(t.Nickname.Value, settings.NicknameLimit, "nickname"); err != nil {
+			return err
+		}
+		columns = append(columns, "nickname")
+	}
+	if t.Theme.Set {
+		if setting.Theme, err = settingValue(t.Theme.Value, settings.ThemeLimit, "theme"); err != nil {
+			return err
+		}
+		columns = append(columns, "theme")
+	}
+
+	if len(columns) == 0 {
+		return nil
+	}
+
+	return settings.Save(db, setting, columns)
 }
 
 // ReadChat moves user's read position to the latest activity and last message of the chat
@@ -360,7 +581,7 @@ func SendMessage(db *gorm.DB, username, friendId string, t *SendMessageRequest) 
 			return MessageEventData{FriendId: friendId, Message: messageData}
 		}))
 
-	if err := notify(db, user, []int64{receiverId}, user.Name, t.Message); err != nil {
+	if err := notify(db, user, []int64{receiverId}, "", t.Message); err != nil {
 		return MessageData{}, err
 	}
 
@@ -459,7 +680,7 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 		body = strings.TrimSpace(body + " " + *t.Emotion)
 	}
 
-	return notify(db, user, ids, user.Name+" is feeling", body)
+	return notify(db, user, ids, " is feeling", body)
 }
 
 // UpdateReaction sets or removes a reaction on the friend's message
@@ -513,7 +734,7 @@ func UpdateReaction(db *gorm.DB, username, id string, reaction *string) error {
 		body = "Sent support 🫶 to \"" + messagePreview(message) + "\""
 	}
 
-	return notify(db, user, []int64{message.SenderId}, user.Name, body)
+	return notify(db, user, []int64{message.SenderId}, "", body)
 }
 
 // DeleteMessage deletes user's own message and moves chat's last message and activity back if needed
@@ -588,7 +809,7 @@ func SendTyping(db *gorm.DB, user users.UserData, friendId int64, typing bool) e
 		return err
 	}
 	if count == 0 {
-		return errors.New("user is not your friend")
+		return ErrNotFriend
 	}
 
 	connections.Send(db, []connections.Delivery{{
@@ -703,7 +924,7 @@ func getOrCreateChats(tx *gorm.DB, user users.UserData, friendIds []int64) ([]Ch
 			return nil, err
 		}
 		if count != int64(len(missingIds)) {
-			return nil, errors.New("user is not your friend")
+			return nil, ErrNotFriend
 		}
 
 		newChats := make([]Chat, 0, len(missingIds))
@@ -850,28 +1071,116 @@ func revertActivity(tx *gorm.DB, chatId, messageId int64) error {
 		Error
 }
 
-func notify(db *gorm.DB, sender users.UserData, receiverIds []int64, title, body string) error {
-	tokens, err := service.GetTokensByUserIds(db, receiverIds)
+// notify sends the notification to receivers' devices, the title starts with sender's name
+// or the nickname the receiver gave to the sender, each title is sent as its own notification
+func notify(db *gorm.DB, sender users.UserData, receiverIds []int64, titleSuffix, body string) error {
+	var devices []struct {
+		UserId      int64
+		DeviceToken string
+	}
+	if err := db.
+		Table("devices").
+		Select("user_id, device_token").
+		Distinct("user_id, device_token").
+		Where("user_id IN ?", receiverIds).
+		Find(&devices).
+		Error; err != nil {
+		return err
+	}
+
+	if len(devices) == 0 {
+		return nil
+	}
+
+	nicknames, err := settings.GetSenderNicknames(db, sender.Id, receiverIds)
 	if err != nil {
 		return err
 	}
 
-	if len(tokens) == 0 {
-		return nil
+	var titles []string
+	titleTokens := make(map[string][]string)
+	for _, device := range devices {
+		name := sender.Name
+		if nickname, ok := nicknames[device.UserId]; ok {
+			name = nickname
+		}
+
+		title := name + titleSuffix
+		if _, ok := titleTokens[title]; !ok {
+			titles = append(titles, title)
+		}
+		titleTokens[title] = append(titleTokens[title], device.DeviceToken)
 	}
 
-	fcmNotification := service.FcmNotification{
-		Data: map[string]string{
-			"type":     "chat",
-			"friendId": strconv.FormatInt(sender.Id, 10),
-		},
-		Title:   title,
-		Body:    body,
-		Sound:   "default",
-		Devices: tokens,
+	for _, title := range titles {
+		fcmNotification := service.FcmNotification{
+			Data: map[string]string{
+				"type":     "chat",
+				"friendId": strconv.FormatInt(sender.Id, 10),
+			},
+			Title:   title,
+			Body:    body,
+			Sound:   "default",
+			Devices: titleTokens[title],
+		}
+
+		if err := service.SendNotification(&fcmNotification); err != nil {
+			return err
+		}
 	}
 
-	return service.SendNotification(&fcmNotification)
+	return nil
+}
+
+// findMessages gets up to limit messages of the chat matching the condition in the order
+func findMessages(db *gorm.DB, chatId int64, condition string, arg interface{}, order string, limit int) ([]Message, error) {
+	query := db.
+		Table("messages").
+		Where("chat_id = ?", chatId)
+
+	if condition != "" {
+		query = query.Where(condition, arg)
+	}
+
+	var messages []Message
+	err := query.
+		Order(order).
+		Limit(limit).
+		Find(&messages).
+		Error
+
+	return messages, err
+}
+
+func reversed(messages []Message) []Message {
+	result := make([]Message, 0, len(messages))
+	for i := len(messages) - 1; i >= 0; i-- {
+		result = append(result, messages[i])
+	}
+
+	return result
+}
+
+// escapeLike escapes LIKE wildcards so the text is matched literally
+func escapeLike(text string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(text)
+}
+
+// settingValue trims the value, an empty value removes the setting
+func settingValue(value *string, limit int, name string) (*string, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil, nil
+	}
+	if utf8.RuneCountInString(trimmed) > limit {
+		return nil, errors.New(name + " can have at most " + strconv.Itoa(limit) + " characters")
+	}
+
+	return &trimmed, nil
 }
 
 func messagePreview(message Message) string {
@@ -903,6 +1212,15 @@ func toMessageData(message Message) MessageData {
 		Reaction: message.Reaction,
 		Time:     message.Time,
 	}
+}
+
+func toMessagesData(messages []Message) []MessageData {
+	var messagesData []MessageData
+	for _, message := range messages {
+		messagesData = append(messagesData, toMessageData(message))
+	}
+
+	return messagesData
 }
 
 // toBoth creates the event for both users of the chat, each with the other user as friendId,

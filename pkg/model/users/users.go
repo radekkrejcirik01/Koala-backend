@@ -48,6 +48,8 @@ type UserData struct {
 	Name         string `json:"name"`
 	ProfilePhoto string `json:"profilePhoto,omitempty"`
 	Email        string `json:"email,omitempty"`
+	// Nickname is the private name the user gave to this friend
+	Nickname string `gorm:"-" json:"nickname,omitempty"`
 }
 
 type Username struct {

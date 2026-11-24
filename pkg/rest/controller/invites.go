@@ -5,6 +5,7 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/database"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/middleware"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/settings"
 )
 
 // SendInvite POST /invite
@@ -81,6 +82,13 @@ func GetFriends(c *fiber.Ctx) error {
 
 	friends, err := invites.GetFriends(database.DB, username)
 	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(Response{
+			Status:  "error",
+			Message: err.Error(),
+		})
+	}
+
+	if err := settings.SetNicknames(database.DB, username, friends); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
 			Message: err.Error(),

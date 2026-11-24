@@ -8,6 +8,7 @@ import (
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/emotions"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/invites"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/notifications"
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/settings"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"gorm.io/gorm"
 )
@@ -67,6 +68,10 @@ func DeleteAccount(db *gorm.DB, username string) error {
 		}
 
 		if err := connections.DeleteUserConnections(tx, userId); err != nil {
+			return err
+		}
+
+		if err := settings.DeleteUserSettings(tx, userId); err != nil {
 			return err
 		}
 
