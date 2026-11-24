@@ -3,6 +3,7 @@ package emotions
 import (
 	"strconv"
 
+	"github.com/radekkrejcirik01/Koala-backend/pkg/model/settings"
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/users"
 	"gorm.io/gorm"
 )
@@ -111,14 +112,24 @@ func GetEmotions(db *gorm.DB, username, from, to, lastTime, lastId, limit string
 		return nil, err
 	}
 
-	recipientsMap := make(map[int64][]users.UserData)
+	recipientsData := make([]users.UserData, 0, len(recipients))
 	for _, recipient := range recipients {
-		recipientsMap[recipient.EmotionId] = append(recipientsMap[recipient.EmotionId], users.UserData{
+		recipientsData = append(recipientsData, users.UserData{
 			Id:           recipient.Id,
 			Username:     recipient.Username,
 			Name:         recipient.Name,
 			ProfilePhoto: recipient.ProfilePhoto,
 		})
+	}
+
+	// Recipients have the nicknames the user gave them
+	if err := settings.SetNicknames(db, username, recipientsData); err != nil {
+		return nil, err
+	}
+
+	recipientsMap := make(map[int64][]users.UserData)
+	for i, recipient := range recipients {
+		recipientsMap[recipient.EmotionId] = append(recipientsMap[recipient.EmotionId], recipientsData[i])
 	}
 
 	// Emotions shared before recipients were saved have an empty list
