@@ -23,7 +23,7 @@ Message events also reach the sender's devices, the device which sent the reques
 | type | data |
 |---|---|
 | `message.new` | `{friendId, message}`, `message` as in `GET /chats/:friendId/messages` |
-| `message.deleted` | `{friendId, id}` |
+| `message.deleted` | `{friendId, id}`, also mark loaded replies to it with `replyTo.deleted` |
 | `message.reaction` | `{friendId, id, reaction}`, `reaction` is `null` when removed |
 | `chat.read` | `{friendId, readerId, lastReadMessageId, lastReadAt}` |
 | `typing` | `{friendId, typing}` |

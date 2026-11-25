@@ -28,7 +28,7 @@ const rangeLimit = 500
 
 var ErrNotFriend = errors.New("user is not your friend")
 
-// previewLimit caps quoted message text in reaction notifications
+// previewLimit caps quoted message text in reaction notifications and reply previews
 const previewLimit = 150
 
 type Chat struct {
@@ -52,14 +52,15 @@ func (Chat) TableName() string {
 }
 
 type Message struct {
-	Id       uint  `gorm:"primary_key;auto_increment;not_null"`
-	ChatId   int64 `gorm:"index"`
-	SenderId int64
-	Type     string  `gorm:"size:20"`
-	Message  string  `gorm:"size:512"`
-	Emotion  *string `gorm:"size:64"`
-	Reaction *string `gorm:"size:64"`
-	Time     int64   `gorm:"autoCreateTime"`
+	Id        uint  `gorm:"primary_key;auto_increment;not_null"`
+	ChatId    int64 `gorm:"index"`
+	SenderId  int64
+	Type      string  `gorm:"size:20"`
+	Message   string  `gorm:"size:512"`
+	Emotion   *string `gorm:"size:64"`
+	Reaction  *string `gorm:"size:64"`
+	ReplyToId *int64
+	Time      int64 `gorm:"autoCreateTime"`
 }
 
 func (Message) TableName() string {
@@ -67,13 +68,24 @@ func (Message) TableName() string {
 }
 
 type MessageData struct {
+	Id       int64      `json:"id"`
+	SenderId int64      `json:"senderId"`
+	Type     string     `json:"type"`
+	Message  string     `json:"message"`
+	Emotion  *string    `json:"emotion,omitempty"`
+	Reaction *string    `json:"reaction,omitempty"`
+	ReplyTo  *ReplyData `json:"replyTo,omitempty"`
+	Time     int64      `json:"time"`
+}
+
+// ReplyData previews the replied message, only id and deleted are set when it was deleted
+type ReplyData struct {
 	Id       int64   `json:"id"`
-	SenderId int64   `json:"senderId"`
-	Type     string  `json:"type"`
-	Message  string  `json:"message"`
+	SenderId int64   `json:"senderId,omitempty"`
+	Type     string  `json:"type,omitempty"`
+	Message  string  `json:"message,omitempty"`
 	Emotion  *string `json:"emotion,omitempty"`
-	Reaction *string `json:"reaction,omitempty"`
-	Time     int64   `json:"time"`
+	Deleted  bool    `json:"deleted,omitempty"`
 }
 
 type ActivityData struct {
@@ -97,7 +109,8 @@ type ChatData struct {
 }
 
 type SendMessageRequest struct {
-	Message string
+	Message   string
+	ReplyToId *int64
 }
 
 type SendEmotionRequest struct {
@@ -304,7 +317,12 @@ func GetMessages(db *gorm.DB, username, friendId, lastId, firstId, aroundId stri
 		return nil, 0, err
 	}
 
-	return toMessagesData(messages), lastReadId, nil
+	messagesData, err := toMessagesData(db, messages)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return messagesData, lastReadId, nil
 }
 
 // SearchMessages searches text of messages and emotions in the chat with a friend,
@@ -343,7 +361,7 @@ func SearchMessages(db *gorm.DB, username, friendId, q, lastId string) ([]Messag
 		return nil, err
 	}
 
-	return toMessagesData(messages), nil
+	return toMessagesData(db, messages)
 }
 
 // GetEmotions gets emotions shared in the chat with a friend, newest first, senderId filters them by sender.
@@ -404,7 +422,12 @@ func GetEmotions(db *gorm.DB, username, friendId, senderId, lastId, from string)
 		return EmotionsData{}, err
 	}
 
-	data := EmotionsData{Messages: toMessagesData(messages)}
+	messagesData, err := toMessagesData(db, messages)
+	if err != nil {
+		return EmotionsData{}, err
+	}
+
+	data := EmotionsData{Messages: messagesData}
 
 	if from != "" || lastId != "" {
 		return data, nil
@@ -556,17 +579,36 @@ func SendMessage(db *gorm.DB, username, friendId string, t *SendMessageRequest) 
 	}
 
 	var message Message
+	var replyTo *ReplyData
 	err = db.Transaction(func(tx *gorm.DB) error {
 		chat, err := getOrCreateChat(tx, user, receiverId)
 		if err != nil {
 			return err
 		}
 
+		if t.ReplyToId != nil {
+			// The replied message must be from the same chat
+			var replied Message
+			if err := tx.
+				Table("messages").
+				Where("id = ? AND chat_id = ?", *t.ReplyToId, chat.Id).
+				First(&replied).
+				Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return errors.New("replied message not found")
+				}
+				return err
+			}
+			reply := toReplyData(replied)
+			replyTo = &reply
+		}
+
 		message = Message{
-			ChatId:   int64(chat.Id),
-			SenderId: user.Id,
-			Type:     MessageType,
-			Message:  t.Message,
+			ChatId:    int64(chat.Id),
+			SenderId:  user.Id,
+			Type:      MessageType,
+			Message:   t.Message,
+			ReplyToId: t.ReplyToId,
 		}
 
 		return createMessage(tx, &message)
@@ -576,6 +618,7 @@ func SendMessage(db *gorm.DB, username, friendId string, t *SendMessageRequest) 
 	}
 
 	messageData := toMessageData(message)
+	messageData.ReplyTo = replyTo
 	connections.Send(db, toBoth(user.Id, receiverId, connections.MessageNewEvent,
 		func(friendId int64) interface{} {
 			return MessageEventData{FriendId: friendId, Message: messageData}
@@ -585,7 +628,7 @@ func SendMessage(db *gorm.DB, username, friendId string, t *SendMessageRequest) 
 		return MessageData{}, err
 	}
 
-	return toMessageData(message), nil
+	return messageData, nil
 }
 
 // SendEmotion sends an emotion to the chats with friends and saves it to emotions history,
@@ -1214,13 +1257,55 @@ func toMessageData(message Message) MessageData {
 	}
 }
 
-func toMessagesData(messages []Message) []MessageData {
-	var messagesData []MessageData
+// toMessagesData converts the messages with previews of the replied messages, loaded in one query
+func toMessagesData(db *gorm.DB, messages []Message) ([]MessageData, error) {
+	var replyIds []int64
 	for _, message := range messages {
-		messagesData = append(messagesData, toMessageData(message))
+		if message.ReplyToId != nil {
+			replyIds = append(replyIds, *message.ReplyToId)
+		}
 	}
 
-	return messagesData
+	repliedMap := make(map[int64]Message)
+	if len(replyIds) > 0 {
+		var replied []Message
+		if err := db.
+			Table("messages").
+			Where("id IN ?", uniqueIds(replyIds)).
+			Find(&replied).
+			Error; err != nil {
+			return nil, err
+		}
+
+		for _, message := range replied {
+			repliedMap[int64(message.Id)] = message
+		}
+	}
+
+	var messagesData []MessageData
+	for _, message := range messages {
+		messageData := toMessageData(message)
+		if message.ReplyToId != nil {
+			reply := ReplyData{Id: *message.ReplyToId, Deleted: true}
+			if replied, ok := repliedMap[*message.ReplyToId]; ok {
+				reply = toReplyData(replied)
+			}
+			messageData.ReplyTo = &reply
+		}
+		messagesData = append(messagesData, messageData)
+	}
+
+	return messagesData, nil
+}
+
+func toReplyData(message Message) ReplyData {
+	return ReplyData{
+		Id:       int64(message.Id),
+		SenderId: message.SenderId,
+		Type:     message.Type,
+		Message:  truncate(message.Message, previewLimit),
+		Emotion:  message.Emotion,
+	}
 }
 
 // toBoth creates the event for both users of the chat, each with the other user as friendId,
