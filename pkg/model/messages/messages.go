@@ -110,7 +110,7 @@ func SendEmotionMessage(db *gorm.DB, t *EmotionMessage, username, messageType st
 		Devices: tokens,
 	}
 
-	return service.SendNotification(&fcmNotification)
+	return service.SendNotification(db, &fcmNotification)
 }
 
 func SendMessage(db *gorm.DB, t *Message, username string) error {
@@ -171,7 +171,7 @@ func SendMessage(db *gorm.DB, t *Message, username string) error {
 		Devices: tokens,
 	}
 
-	return service.SendNotification(&fcmNotification)
+	return service.SendNotification(db, &fcmNotification)
 }
 
 func DeleteMessage(db *gorm.DB, username, id string) error {

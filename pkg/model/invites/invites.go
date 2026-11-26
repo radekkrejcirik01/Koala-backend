@@ -77,7 +77,7 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "", err
 	}
 
-	tokens, err := service.GetTokensByUsername(db, t.Receiver)
+	tokens, err := service.GetTokensByUserId(db, user.Id)
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +89,7 @@ func SendInvite(db *gorm.DB, t *Invite) (string, error) {
 		Devices: tokens,
 	}
 
-	return "Invite sent ✅", service.SendNotification(&fcmNotification)
+	return "Invite sent ✅", service.SendNotification(db, &fcmNotification)
 }
 
 // AcceptInvite updates accepted column in invites table
@@ -107,7 +107,12 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 		return "", err
 	}
 
-	tokens, err := service.GetTokensByUsername(db, t.Receiver)
+	receiver, err := users.GetUser(db, t.Receiver)
+	if err != nil {
+		return "", err
+	}
+
+	tokens, err := service.GetTokensByUserId(db, receiver.Id)
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +124,7 @@ func AcceptInvite(db *gorm.DB, t *Invite) (string, error) {
 		Devices: tokens,
 	}
 
-	return "", service.SendNotification(&fcmNotification)
+	return "", service.SendNotification(db, &fcmNotification)
 }
 
 // IsFriend checks if the user with friendId is user's friend

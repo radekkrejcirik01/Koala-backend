@@ -23,8 +23,7 @@ func SaveDevice(c *fiber.Ctx) error {
 		})
 	}
 
-	t.Username = username
-	if err := devices.SaveDevice(database.DB, t); err != nil {
+	if err := devices.SaveDevice(database.DB, username, t); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
 			Message: err.Error(),
@@ -44,7 +43,18 @@ func DeleteDevice(c *fiber.Ctx) error {
 		return err
 	}
 
-	if err := devices.DeleteDevice(database.DB, username); err != nil {
+	// Old app versions send no body
+	t := &devices.DeleteRequest{}
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(t); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(Response{
+				Status:  "error",
+				Message: err.Error(),
+			})
+		}
+	}
+
+	if err := devices.DeleteDevice(database.DB, username, t.DeviceToken); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(Response{
 			Status:  "error",
 			Message: err.Error(),

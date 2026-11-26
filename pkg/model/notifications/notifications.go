@@ -252,7 +252,7 @@ func UpdateNotificationReaction(db *gorm.DB, username, id string, reaction *stri
 		Devices: tokens,
 	}
 
-	return service.SendNotification(&fcmNotification)
+	return service.SendNotification(db, &fcmNotification)
 }
 
 // UpdateNotificationSupport send a support message to the sender of a direct emotion
@@ -310,7 +310,7 @@ func UpdateNotificationSupport(db *gorm.DB, username, id string) error {
 		Devices: tokens,
 	}
 
-	return service.SendNotification(&fcmNotification)
+	return service.SendNotification(db, &fcmNotification)
 }
 
 func getNotificationUser(usersData []users.UserData, senderId, receiverId int64) users.UserData {

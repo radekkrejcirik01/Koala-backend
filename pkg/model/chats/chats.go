@@ -1167,7 +1167,7 @@ func notify(db *gorm.DB, sender users.UserData, receiverIds []int64, titleSuffix
 			Devices: titleTokens[title],
 		}
 
-		if err := service.SendNotification(&fcmNotification); err != nil {
+		if err := service.SendNotification(db, &fcmNotification); err != nil {
 			return err
 		}
 	}

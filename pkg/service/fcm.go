@@ -27,19 +27,6 @@ type FcmNotification struct {
 	Devices []string
 }
 
-func GetTokensByUsername(db *gorm.DB, username string) ([]string, error) {
-	var tokens []string
-	err := db.
-		Table("devices").
-		Select("device_token").
-		Distinct("device_token").
-		Where("username = ?", username).
-		Find(&tokens).
-		Error
-
-	return tokens, err
-}
-
 func GetTokensByUserId(db *gorm.DB, id int64) ([]string, error) {
 	var tokens []string
 	err := db.
@@ -67,8 +54,9 @@ func GetTokensByUserIds(db *gorm.DB, ids []int64) ([]string, error) {
 }
 
 // SendNotification sends the notification to all devices in parallel batches,
-// failures are only logged so they never fail the request
-func SendNotification(t *FcmNotification) error {
+// failures are only logged so they never fail the request,
+// tokens of uninstalled apps are deleted
+func SendNotification(db *gorm.DB, t *FcmNotification) error {
 	if len(t.Devices) == 0 {
 		return nil
 	}
@@ -98,6 +86,7 @@ func SendNotification(t *FcmNotification) error {
 		})
 	}
 
+	var unregistered []string
 	for start := 0; start < len(messages); start += maxBatchSize {
 		end := min(start+maxBatchSize, len(messages))
 
@@ -108,10 +97,23 @@ func SendNotification(t *FcmNotification) error {
 		}
 
 		log.Printf("FCM sent: %d, failed: %d\n", response.SuccessCount, response.FailureCount)
-		for _, r := range response.Responses {
-			if r.Error != nil {
-				log.Println(r.Error.Error())
+		// Responses are in the order of the batch's messages
+		for i, r := range response.Responses {
+			if r.Error == nil {
+				continue
 			}
+			log.Println(r.Error.Error())
+			if messaging.IsUnregistered(r.Error) {
+				unregistered = append(unregistered, messages[start+i].Token)
+			}
+		}
+	}
+
+	if len(unregistered) > 0 {
+		if err := db.
+			Exec("DELETE FROM devices WHERE device_token IN ?", unregistered).
+			Error; err != nil {
+			log.Println(err.Error())
 		}
 	}
 
