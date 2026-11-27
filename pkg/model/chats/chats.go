@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/radekkrejcirik01/Koala-backend/pkg/model/connections"
@@ -117,6 +118,7 @@ type SendEmotionRequest struct {
 	Ids     []int64
 	Emotion *string
 	Message string
+	Note    *string
 }
 
 type ReactionRequest struct {
@@ -632,11 +634,17 @@ func SendMessage(db *gorm.DB, username, friendId string, t *SendMessageRequest) 
 }
 
 // SendEmotion sends an emotion to the chats with friends and saves it to emotions history,
-// without ids the emotion is only logged to the history
+// without ids the emotion is only logged to the history.
+// The note is saved with the emotion and sent as a text message after it in each chat
 func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 	t.Message = strings.TrimSpace(t.Message)
 	if t.Message == "" && (t.Emotion == nil || *t.Emotion == "") {
 		return errors.New("emotion or message is required")
+	}
+
+	note, err := settingValue(t.Note, emotions.NoteLimit, "note")
+	if err != nil {
+		return err
 	}
 
 	user, err := getUser(db, username)
@@ -647,11 +655,13 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 	ids := uniqueIds(t.Ids)
 
 	var messages []Message
+	var notes []Message
 	err = db.Transaction(func(tx *gorm.DB) error {
 		emotion := emotions.Emotion{
 			UserId:  user.Id,
 			Emotion: t.Emotion,
 			Message: t.Message,
+			Note:    note,
 		}
 		if err := tx.Table("emotions").Create(&emotion).Error; err != nil {
 			return err
@@ -697,6 +707,30 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 			}
 		}
 
+		if note == nil {
+			return nil
+		}
+
+		// Notes are created after the emotions so they follow them in the chats
+		notes = make([]Message, 0, len(messages))
+		for _, message := range messages {
+			notes = append(notes, Message{
+				ChatId:   message.ChatId,
+				SenderId: user.Id,
+				Type:     MessageType,
+				Message:  *note,
+			})
+		}
+		if err := tx.Table("messages").Create(&notes).Error; err != nil {
+			return err
+		}
+
+		for _, message := range notes {
+			if err := setLastMessage(tx, message); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -707,23 +741,34 @@ func SendEmotion(db *gorm.DB, username string, t *SendEmotionRequest) error {
 		return nil
 	}
 
-	// Messages are in the order of ids
+	// Messages and notes are in the order of ids
 	var deliveries []connections.Delivery
 	for i, message := range messages {
-		messageData := toMessageData(message)
-		deliveries = append(deliveries, toBoth(user.Id, ids[i], connections.MessageNewEvent,
-			func(friendId int64) interface{} {
-				return MessageEventData{FriendId: friendId, Message: messageData}
-			})...)
+		chatMessages := []Message{message}
+		if notes != nil {
+			chatMessages = append(chatMessages, notes[i])
+		}
+		for _, chatMessage := range chatMessages {
+			messageData := toMessageData(chatMessage)
+			deliveries = append(deliveries, toBoth(user.Id, ids[i], connections.MessageNewEvent,
+				func(friendId int64) interface{} {
+					return MessageEventData{FriendId: friendId, Message: messageData}
+				})...)
+		}
 	}
 	connections.Send(db, deliveries)
 
-	body := t.Message
+	feeling := t.Message
 	if t.Emotion != nil {
-		body = strings.TrimSpace(body + " " + *t.Emotion)
+		feeling = strings.TrimSpace(feeling + " " + *t.Emotion)
 	}
 
-	return notify(db, user, ids, " is feeling", body)
+	// With a note the feeling moves to the title, like "Radek is feeling sad 😢"
+	if note != nil {
+		return notify(db, user, ids, " is feeling "+lowerFirst(feeling), *note)
+	}
+
+	return notify(db, user, ids, " is feeling", feeling)
 }
 
 // UpdateReaction sets or removes a reaction on the friend's message
@@ -1243,6 +1288,16 @@ func truncate(text string, limit int) string {
 	}
 
 	return strings.TrimSpace(string(runes[:limit])) + "…"
+}
+
+// lowerFirst lowercases only the first letter, so "Missing Prague" becomes "missing Prague"
+func lowerFirst(text string) string {
+	r, size := utf8.DecodeRuneInString(text)
+	if r == utf8.RuneError {
+		return text
+	}
+
+	return string(unicode.ToLower(r)) + text[size:]
 }
 
 func toMessageData(message Message) MessageData {
